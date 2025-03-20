@@ -1,76 +1,94 @@
 """
-1.1 리포트 품질 향상 기법 - 학업 보고서 작성 최적화 실습
+리포트 품질 향상 기법
 
-이 실습은 기본적인 보고서 작성 프롬프트와 향상된 프롬프트의 차이를 보여줍니다.
+주제 분석, 논리적 구조 설계, 인용 최적화, 맞춤형 과제 작성을 위한 통합 도구
 """
 
-from utils.api_utils import generate_text
-from utils.prompt_utils import format_prompt
+import os
+import sys
 
-# 실습 주제: 인공지능의 교육적 활용에 관한 학술 보고서 작성
+# 상위 디렉토리 추가하여 utils 모듈 import 가능하게 설정
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# 1. 기본 프롬프트 (부실한 프롬프트)
-basic_prompt = """
-인공지능의 교육적 활용에 대한 보고서를 작성해주세요.
+from utils.ai_client import get_completion
+from utils.file_handler import save_markdown
+
+def main():
+    print("\n===== 리포트 품질 향상 기법 =====")
+    
+    # 사용자 입력
+    topic = input("리포트 주제를 입력하세요: ")
+    field = input("학문 분야를 입력하세요: ")
+    professor_type = input("교수 유형을 입력하세요 (예: 이론 중심형, 실용 중심형): ")
+    assignment_type = input("과제 유형을 입력하세요 (예: 에세이, 연구 보고서): ")
+    
+    # 기본 프롬프트 - 매우 단순하고 빈약한 버전
+    basic_prompt = f"""
+{topic}에 대한 {assignment_type} 어떻게 쓰면 좋을까?
 """
+    
+    print("\n===== 기본 통합 프롬프트 =====")
+    print(basic_prompt)
+    
+    # 기본 프롬프트 실행
+    basic_result = get_completion(basic_prompt, temperature=0.7)
+    
+    print("\n===== 기본 통합 가이드 결과 =====")
+    print(basic_result)
+    
+    print("\n" + "-"*60)
+    
+    # 향상된 프롬프트 - 모든 요소를 통합하되 더 구체적인 지시
+    enhanced_prompt = f"""
+당신은 최고의 학술 컨설턴트로서 학생들이 최상의 학술 리포트를 작성할 수 있도록 지원합니다.
 
-# 2. 향상된 프롬프트 (구조화, 구체적 지시, 평가 기준 포함)
-enhanced_prompt = """
-당신은 교육공학 전문가입니다. 대학원 수준의 학술 보고서를 작성해주세요.
+다음 정보를 바탕으로 종합적인 리포트 품질 향상 가이드를 제공해주세요:
 
-주제: 인공지능 기술의 교육적 활용과 그 영향
+주제: {topic}
+학문 분야: {field}
+교수 유형: {professor_type}
+과제 유형: {assignment_type}
 
-다음 구조를 따라 작성해주세요:
-1. 서론 (배경, 중요성, 연구 질문)
-2. 이론적 배경 (AI 교육 도구의 발전과 현황)
-3. 적용 사례 분석 (최소 3가지 구체적 사례)
-4. 효과 및 한계점 (긍정적/부정적 측면 모두 포함)
-5. 미래 방향 및 제언
-6. 결론
+다음 네 가지 핵심 영역에 대한 통합된 전략을 제공해주세요:
 
-요구사항:
-- 학술적 문체와 용어 사용
-- 최신 연구(2020년 이후)를 포함한 참고문헌 최소 5개 인용
-- 각 섹션에서 제시된 주장에 대한 근거 포함
-- 총 2000단어 내외로 작성
-- 교육 평등성, 접근성, 윤리적 측면을 반드시 다룰 것
+1. 주제 분석 및 논점 도출
+   - 주제의 학술적 중요성과 배경
+   - 핵심 논점 3-5개와 각각의 학문적 의의
+   - 관련된 주요 학술적 개념이나 이론
 
-평가 기준:
-- 내용의 깊이와一관련성
-- 논리적 구성과 흐름
-- 근거 기반 논증
-- 비판적 분석력
+2. 논리적 구조와 흐름 설계
+   - 과제 유형에 적합한 전체 구조 설계
+   - 각 섹션의 목적과 포함할 내용
+   - 논리적 흐름과 일관성 유지 전략
+
+3. 참고문헌 및 인용 최적화
+   - 해당 분야의 적절한 인용 스타일과 형식
+   - 효과적인 인용 배치와 활용 방법
+   - 참고문헌 목록 작성 팁
+
+4. 교수 유형별 맞춤 전략
+   - 해당 교수 유형의 특성과 선호도
+   - 교수의 기대를 충족시키는 작성 방법
+   - 피해야 할 실수와 강조해야 할 요소
+
+마크다운 형식으로 구조화된 응답을 제공해주세요.
 """
+    
+    print("\n===== 향상된 통합 프롬프트 =====")
+    print(enhanced_prompt)
+    
+    # 향상된 프롬프트 실행
+    enhanced_result = get_completion(enhanced_prompt, temperature=0.5)
+    
+    print("\n===== 향상된 통합 가이드 결과 =====")
+    print(enhanced_result)
+    
+    # 결과 저장 (선택 사항)
+    save = input("\n통합 가이드를 파일로 저장하시겠습니까? (y/n): ")
+    if save.lower() == 'y':
+        file_path = input("저장할 파일명을 입력하세요 (기본: report_guide.md): ") or "report_guide.md"
+        save_markdown(enhanced_result, file_path, title=f"{topic} 리포트 작성 통합 가이드")
+        print(f"통합 가이드가 {file_path}에 저장되었습니다.")
 
-# 3. 두 프롬프트 실행 및 결과 비교
-print("\n===== 기본 프롬프트와 향상된 프롬프트 비교 =====\n")
-print(f"기본 프롬프트 글자 수: {len(basic_prompt)}")
-print(f"향상된 프롬프트 글자 수: {len(enhanced_prompt)}")
-
-# 기본 프롬프트 실행
-print("\n----- 기본 프롬프트 실행 중... -----")
-basic_result = generate_text(basic_prompt)
-
-# 향상된 프롬프트 실행
-print("\n----- 향상된 프롬프트 실행 중... -----")
-enhanced_result = generate_text(enhanced_prompt)
-
-# 4. 결과 비교 및 출력
-print("\n===== 결과 비교 =====\n")
-
-# 기본 프롬프트 결과 미리보기 (처음 300자)
-print("----- 기본 프롬프트 결과 (일부) -----")
-print(basic_result[:300] + "...\n")
-print(f"총 글자 수: {len(basic_result)}")
-print(f"구조화된 섹션 수: {basic_result.count('#') + basic_result.count('##')}")
-
-# 향상된 프롬프트 결과 미리보기 (처음 300자)
-print("\n----- 향상된 프롬프트 결과 (일부) -----")
-print(enhanced_result[:300] + "...\n")
-print(f"총 글자 수: {len(enhanced_result)}")
-print(f"구조화된 섹션 수: {enhanced_result.count('#') + enhanced_result.count('##')}")
-
-# 5. 간단한 분석
-print("\n===== 분석 =====")
-print(f"글자 수 증가율: {(len(enhanced_result) / len(basic_result) * 100 - 100):.1f}%")
-print(f"구조화 개선율: {(enhanced_result.count('#') - basic_result.count('#')) / max(1, basic_result.count('#')) * 100:.1f}%")
+if __name__ == "__main__":
+    main()
