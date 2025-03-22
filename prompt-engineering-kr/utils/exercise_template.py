@@ -6,6 +6,7 @@
 
 import os
 import sys
+import inspect
 from typing import Dict, List, Any, Optional, Callable, Tuple
 
 from utils.ai_client import get_completion
@@ -151,18 +152,70 @@ def save_results(
         enhanced_prompt: 향상된 프롬프트
         enhanced_result: 향상된 결과
     """
+    import os
+    import re
+    import inspect
+    
     # 파일명 생성
     safe_topic = topic.replace(' ', '_').lower()
     
-    # 챕터 기반 경로 사용하여 저장
+    # 호출 스택에서 호출자 파일 가져오기
+    frame = inspect.stack()[1]
+    calling_file = os.path.abspath(frame.filename)
+    file_basename = os.path.basename(calling_file)
+    
+    # 프로젝트 루트 찾기
+    project_root = os.path.dirname(calling_file)
+    while os.path.basename(project_root).lower() != 'prompt-engineering-kr':
+        parent = os.path.dirname(project_root)
+        if parent == project_root:  # 루트에 도달
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(calling_file)))
+            break
+        project_root = parent
+    
+    # 파일 이름에서 챕터 번호 추출 (예: 1.1_clear_instructions.py -> part1/1.1)
+    match = re.match(r'^(\d+)\.(\d+)(?:\.(\d+))?_.*\.py$', file_basename)
+    result_path = "unknown"
+    
+    if match:
+        part_num = match.group(1)
+        chapter_num = match.group(2)
+        subchapter_num = match.group(3)
+        
+        # 결과 경로 구성
+        part_path = f"part{part_num}"
+        chapter_path = f"{part_num}.{chapter_num}"
+        
+        if subchapter_num:
+            # 하위 챕터가 있는 경우 (예: 1.1.1)
+            result_path = os.path.join(part_path, chapter_path, f"{chapter_path}.{subchapter_num}")
+        else:
+            # 하위 챕터가 없는 경우 (예: 1.1)
+            result_path = os.path.join(part_path, chapter_path)
+    
+    # 결과 저장 디렉토리 생성
+    chapter_dir = os.path.join(project_root, "results", result_path)
+    os.makedirs(chapter_dir, exist_ok=True)
+    
+    print(f"\n결과를 {result_path} 폴더에 저장합니다...")
+    
+    # 기본 응답 저장
     basic_filename = f"basic_{safe_topic}.md"
-    save_markdown(basic_result, basic_filename, title=f"{topic} - 기본 프롬프트 결과", use_chapter_path=True)
+    basic_path = os.path.join(chapter_dir, basic_filename)
+    with open(basic_path, 'w', encoding='utf-8') as f:
+        f.write(f"# {topic} - 기본 프롬프트 결과\n\n{basic_result}")
     print(f"기본 응답이 저장되었습니다.")
     
+    # 향상된 응답 저장
     enhanced_filename = f"enhanced_{safe_topic}.md"
-    save_markdown(enhanced_result, enhanced_filename, title=f"{topic} - 향상된 프롬프트 결과", use_chapter_path=True)
+    enhanced_path = os.path.join(chapter_dir, enhanced_filename)
+    with open(enhanced_path, 'w', encoding='utf-8') as f:
+        f.write(f"# {topic} - 향상된 프롬프트 결과\n\n{enhanced_result}")
     print(f"향상된 응답이 저장되었습니다.")
     
+    # 비교 내용 생성 및 저장
+    comparison_filename = f"comparison_{safe_topic}.md"
+    comparison_path = os.path.join(chapter_dir, comparison_filename)
     comparison_content = f"""# {topic} 프롬프트 비교
 
 ## 기본 프롬프트
@@ -185,6 +238,10 @@ def save_results(
 기본 프롬프트는 일반적인 정보를 제공하는 반면, 향상된 프롬프트는
 실제 사용 목적에 맞는 구조화된 정보를 제공합니다.
 """
+    
+    # 비교 응답 저장
     comparison_filename = f"comparison_{safe_topic}.md"
-    save_markdown(comparison_content, comparison_filename, use_chapter_path=True)
+    comparison_path = os.path.join(chapter_dir, comparison_filename)
+    with open(comparison_path, 'w', encoding='utf-8') as f:
+        f.write(comparison_content)
     print(f"프롬프트 비교가 저장되었습니다.")

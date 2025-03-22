@@ -116,7 +116,6 @@ def write_csv(data: List[Dict[str, Any]], file_path: str,
         writer.writeheader()
         writer.writerows(data)
 
-
 def get_chapter_info(calling_file: str = None) -> Tuple[Optional[str], str, str]:
     """
     실행 중인 파일의 챕터 정보를 추출합니다.
@@ -135,6 +134,11 @@ def get_chapter_info(calling_file: str = None) -> Tuple[Optional[str], str, str]
     
     # 파일 경로 정규화
     file_path = os.path.abspath(calling_file)
+    file_basename = os.path.basename(file_path)
+    
+    print(f"\n디버깅 - get_chapter_info:")
+    print(f"분석 중인 파일: {file_path}")
+    print(f"파일 이름: {file_basename}")
     
     # 기본값 설정
     chapter_id = None
@@ -142,47 +146,103 @@ def get_chapter_info(calling_file: str = None) -> Tuple[Optional[str], str, str]
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     try:
-        # 파일 경로를 OS에 관계없이 일관되게 처리
-        normalized_path = file_path.replace('\\', '/')
+        # 프로젝트 루트 찾기
+        project_root_found = False
+        root_path = os.path.dirname(file_path)
+        while root_path and not project_root_found:
+            if os.path.basename(root_path).lower() == 'prompt-engineering-kr':
+                project_root = root_path
+                project_root_found = True
+                print(f"프로젝트 루트 찾음: {project_root}")
+                break
+            parent = os.path.dirname(root_path)
+            if parent == root_path:  # 루트에 도달
+                break
+            root_path = parent
         
-        # 디렉토리 경로에서 챕터 정보 추출
-        # 예: exercises/part1/1.1/example.py에서 1.1 추출
-        dir_match = re.search(r'/exercises/part\d+/(\d+\.\d+)/', normalized_path)
-        if dir_match:
-            chapter_id = dir_match.group(1)
-            # 챕터 이름은 파일명에서 가져옴
-            file_base = os.path.basename(file_path)
-            chapter_name = os.path.splitext(file_base)[0]
-            
-            # 챕터 이름에서 숫자 접두사 제거 (예: 1.1_clear_instructions.py -> clear_instructions)
-            name_match = re.match(r'\d+\.\d+(?:\.\d+)?_(.+)', chapter_name)
-            if name_match:
-                chapter_name = name_match.group(1)
+        if not project_root_found:
+            print(f"프로젝트 루트를 찾지 못했습니다. 기본값 사용: {project_root}")
         
-        # 파일명에서 챕터 정보 추출 실패 시 디렉토리 이름 자체를 사용
+        # 1. 파일 이름 패턴 1: 1.1_clear_instructions.py
+        pattern1 = r'^(\d+\.\d+)_(.+)\.py$'
+        match1 = re.match(pattern1, file_basename)
+        if match1:
+            chapter_id = match1.group(1)
+            chapter_name = match1.group(2)
+            print(f"패턴 1 매치: chapter_id={chapter_id}, chapter_name={chapter_name}")
+        
+        # 2. 파일 이름 패턴 2: 1.1.1_specific_requests.py
+        pattern2 = r'^(\d+\.\d+\.\d+)_(.+)\.py$'
+        match2 = re.match(pattern2, file_basename)
+        if match2:
+            chapter_id = match2.group(1)
+            chapter_name = match2.group(2)
+            print(f"패턴 2 매치: chapter_id={chapter_id}, chapter_name={chapter_name}")
+        
+        # 3. 파일 경로에서 챕터 정보 추출
         if chapter_id is None:
-            # 파일이 있는 디렉토리 이름 가져오기
+            normalized_path = file_path.replace('\\', '/')
+            print(f"정규화된 경로: {normalized_path}")
+            
+            # 패턴: exercises/part1/1.1/
+            pattern3 = r'/exercises/part\d+/(\d+\.\d+)/'
+            match3 = re.search(pattern3, normalized_path)
+            if match3:
+                chapter_id = match3.group(1)
+                # 챕터 이름은 파일명에서 가져옴
+                chapter_name = os.path.splitext(file_basename)[0]
+                print(f"패턴 3 매치: chapter_id={chapter_id}, chapter_name={chapter_name}")
+                
+                # 챕터 이름에서 숫자 접두사 제거 (예: 1.1_clear_instructions -> clear_instructions)
+                name_pattern = r'^\d+\.\d+(?:\.\d+)?_(.+)$'
+                name_match = re.match(name_pattern, chapter_name)
+                if name_match:
+                    chapter_name = name_match.group(1)
+                    print(f"이름 패턴 매치: chapter_name={chapter_name}")
+        
+        # 4. 디렉토리 이름에서 챕터 정보 추출
+        if chapter_id is None:
             dir_name = os.path.basename(os.path.dirname(file_path))
+            print(f"디렉토리 이름: {dir_name}")
             
             # 디렉토리 이름이 챕터 형식인지 확인 (예: 1.1)
             if re.match(r'^\d+\.\d+$', dir_name):
                 chapter_id = dir_name
+                print(f"디렉토리 이름 매치: chapter_id={chapter_id}")
+                
                 # 챕터 이름은 파일명에서 가져옴
                 file_base = os.path.basename(file_path)
-                chapter_name = os.path.splitext(file_base)[0]
+                base_name = os.path.splitext(file_base)[0]
+                
+                # 파일 이름에 챕터 ID가 포함된 경우 제거 (예: 1.1_clear_instructions.py)
+                name_pattern = rf'^{chapter_id}_(.+)$'
+                name_match = re.match(name_pattern, base_name)
+                if name_match:
+                    chapter_name = name_match.group(1)
+                else:
+                    chapter_name = base_name
+                print(f"파일 이름에서 챕터 이름 추출: chapter_name={chapter_name}")
         
-        # 프로젝트 루트 경로 찾기
-        if 'prompt-engineering-kr' in file_path:
-            parts = file_path.split(os.sep)
-            project_root_idx = parts.index('prompt-engineering-kr')
-            project_root = os.sep.join(parts[:project_root_idx+1])
+        # 5. 하드코딩된 매핑 사용 (최후의 수단)
+        if chapter_id is None:
+            # 알려진 파일 이름을 기반으로 매핑
+            known_files = {
+                "1.1_clear_instructions.py": ("1.1", "clear_instructions"),
+                "1.1.1_specific_requests.py": ("1.1.1", "specific_requests"),
+                "1.1.2_key_questions.py": ("1.1.2", "key_questions"),
+                "1.1.3_concrete_terms.py": ("1.1.3", "concrete_terms"),
+                # 필요한 만큼 추가
+            }
+            
+            if file_basename in known_files:
+                chapter_id, chapter_name = known_files[file_basename]
+                print(f"하드코딩된 매핑 사용: chapter_id={chapter_id}, chapter_name={chapter_name}")
     
     except Exception as e:
         print(f"챕터 정보 추출 중 오류 발생: {e}")
     
+    print(f"최종 결과: chapter_id={chapter_id}, chapter_name={chapter_name}, project_root={project_root}")
     return (chapter_id, chapter_name, project_root)
-
-
 
 def get_chapter_results_dir(calling_file: str = None) -> str:
     """
@@ -198,23 +258,72 @@ def get_chapter_results_dir(calling_file: str = None) -> str:
     from utils.config import get_setting
     use_chapter_folders = get_setting('output.use_chapter_folders', True)
     
+    # 호출 파일이 제공되지 않으면 스택에서 추출
+    if calling_file is None:
+        # 호출 스택에서 호출자 파일 경로 가져오기
+        frame = inspect.stack()[1]
+        calling_file = frame.filename
+    
+    print(f"\n디버깅 - get_chapter_results_dir:")
+    print(f"호출 파일: {calling_file}")
+    print(f"챕터별 폴더 사용: {use_chapter_folders}")
+    
     # 챕터 정보 가져오기
     chapter_id, chapter_name, project_root = get_chapter_info(calling_file)
     
-    # 결과 디렉토리 구성
+    # 결과 디렉토리 경로
     if use_chapter_folders and chapter_id:
-        # 챕터 ID와 이름을 조합한 폴더 생성 (예: results/1.1_clear_instructions)
-        folder_name = f"{chapter_id}_{chapter_name}"
-        results_dir = os.path.join(project_root, "results", folder_name)
+        # 파일 이름에서 파트 번호 추출
+        part_match = None
+        if chapter_id and '.' in chapter_id:
+            part_num = chapter_id.split('.')[0]
+            part_match = part_num
+            print(f"파트 번호 추출: {part_num}")
+        
+        # 새로운 폴더 구조: results/part{part_num}/{chapter_id}
+        if part_match:
+            part_path = f"part{part_match}"
+            
+            # 챕터 ID에 마침표 포함 (예: 1.1 또는 1.1.1)
+            if '.' in chapter_id:
+                # 챕터 ID 분석
+                parts = chapter_id.split('.')
+                
+                if len(parts) == 2:  # 예: 1.1
+                    # results/part1/1.1
+                    results_dir = os.path.join(project_root, "results", part_path, chapter_id)
+                    print(f"기본 챕터 경로: {results_dir}")
+                elif len(parts) == 3:  # 예: 1.1.1
+                    # 상위 챕터 경로: results/part1/1.1
+                    parent_chapter = f"{parts[0]}.{parts[1]}"
+                    # 전체 경로: results/part1/1.1/1.1.1
+                    results_dir = os.path.join(project_root, "results", part_path, parent_chapter, chapter_id)
+                    print(f"하위 챕터 경로: {results_dir}")
+                else:
+                    # 알 수 없는 형식: 기본 폴더 구조 사용
+                    folder_name = f"{chapter_id}_{chapter_name}"
+                    results_dir = os.path.join(project_root, "results", folder_name)
+                    print(f"알 수 없는 챕터 형식, 기본 폴더 사용: {results_dir}")
+            else:
+                # 챕터 ID에 마침표가 없는 경우: 기본 폴더 구조 사용
+                folder_name = f"{chapter_id}_{chapter_name}"
+                results_dir = os.path.join(project_root, "results", folder_name)
+                print(f"마침표 없는 챕터 ID, 기본 폴더 사용: {results_dir}")
+        else:
+            # 파트 번호 추출 실패: 기본 폴더 구조 사용
+            folder_name = f"{chapter_id}_{chapter_name}"
+            results_dir = os.path.join(project_root, "results", folder_name)
+            print(f"파트 번호 추출 실패, 기본 폴더 사용: {results_dir}")
     else:
-        # 챕터 정보를 사용하지 않거나 추출하지 못한 경우 기본 results 디렉토리 사용
+        # 챕터 정보가 없거나 챕터별 폴더 사용하지 않음: 기본 results 디렉토리 사용
         results_dir = os.path.join(project_root, "results")
+        print(f"챕터 정보 없음 또는 챕터별 폴더 미사용, 기본 폴더 사용: {results_dir}")
     
     # 디렉토리가 없으면 생성
     os.makedirs(results_dir, exist_ok=True)
     
+    print(f"최종 결과 디렉토리: {results_dir}")
     return results_dir
-
 
 def get_templates_path() -> str:
     """
