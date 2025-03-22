@@ -11,12 +11,16 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from utils.ai_client import get_completion
+from utils.prompt_builder import PromptBuilder
 from utils.file_handler import save_markdown
 
 def main():
-    print("\n===== 리포트 품질 향상 기법 =====")
+    """
+    실습 코드 메인 함수
+    """
+    print("===== 리포트 품질 향상 기법 =====")
     
-    # 사용자 입력
+    # 사용자 입력 받기
     topic = input("리포트 주제를 입력하세요: ")
     field = input("학문 분야를 입력하세요: ")
     professor_type = input("교수 유형을 입력하세요 (예: 이론 중심형, 실용 중심형): ")
@@ -39,40 +43,48 @@ def main():
     print("\n" + "-"*60)
     
     # 향상된 프롬프트 - 모든 요소를 통합하되 더 구체적인 지시
-    enhanced_prompt = f"""
-당신은 최고의 학술 컨설턴트로서 학생들이 최상의 학술 리포트를 작성할 수 있도록 지원합니다.
-
-다음 정보를 바탕으로 종합적인 리포트 품질 향상 가이드를 제공해주세요:
-
-주제: {topic}
-학문 분야: {field}
-교수 유형: {professor_type}
-과제 유형: {assignment_type}
-
-다음 네 가지 핵심 영역에 대한 통합된 전략을 제공해주세요:
-
-1. 주제 분석 및 논점 도출
-   - 주제의 학술적 중요성과 배경
-   - 핵심 논점 3-5개와 각각의 학문적 의의
-   - 관련된 주요 학술적 개념이나 이론
-
-2. 논리적 구조와 흐름 설계
-   - 과제 유형에 적합한 전체 구조 설계
-   - 각 섹션의 목적과 포함할 내용
-   - 논리적 흐름과 일관성 유지 전략
-
-3. 참고문헌 및 인용 최적화
-   - 해당 분야의 적절한 인용 스타일과 형식
-   - 효과적인 인용 배치와 활용 방법
-   - 참고문헌 목록 작성 팁
-
-4. 교수 유형별 맞춤 전략
-   - 해당 교수 유형의 특성과 선호도
-   - 교수의 기대를 충족시키는 작성 방법
-   - 피해야 할 실수와 강조해야 할 요소
-
-마크다운 형식으로 구조화된 응답을 제공해주세요.
-"""
+    prompt_builder = PromptBuilder()
+    
+    # 역할 설정
+    prompt_builder.add_role("최고의 학술 컨설턴트", 
+                          "학생들이 최상의 학술 리포트를 작성할 수 있도록 지원하는 전문가입니다.")
+    
+    # 맥락 제공
+    prompt_builder.add_context(
+        f"주제: {topic}\n"
+        f"학문 분야: {field}\n"
+        f"교수 유형: {professor_type}\n"
+        f"과제 유형: {assignment_type}"
+    )
+    
+    # 지시사항 추가
+    prompt_builder.add_instructions([
+        "1. 주제 분석 및 논점 도출",
+        "   - 주제의 학술적 중요성과 배경",
+        "   - 핵심 논점 3-5개와 각각의 학문적 의의",
+        "   - 관련된 주요 학술적 개념이나 이론",
+        
+        "2. 논리적 구조와 흐름 설계",
+        "   - 과제 유형에 적합한 전체 구조 설계",
+        "   - 각 섹션의 목적과 포함할 내용",
+        "   - 논리적 흐름과 일관성 유지 전략",
+        
+        "3. 참고문헌 및 인용 최적화",
+        "   - 해당 분야의 적절한 인용 스타일과 형식",
+        "   - 효과적인 인용 배치와 활용 방법",
+        "   - 참고문헌 목록 작성 팁",
+        
+        "4. 교수 유형별 맞춤 전략",
+        "   - 해당 교수 유형의 특성과 선호도",
+        "   - 교수의 기대를 충족시키는 작성 방법",
+        "   - 피해야 할 실수와 강조해야 할 요소"
+    ])
+    
+    # 출력 형식 지정
+    prompt_builder.add_format_instructions("마크다운 형식으로 구조화된 응답을 제공해주세요.")
+    
+    # 프롬프트 빌드
+    enhanced_prompt = prompt_builder.build()
     
     print("\n===== 향상된 통합 프롬프트 =====")
     print(enhanced_prompt)
@@ -89,6 +101,7 @@ def main():
         file_path = input("저장할 파일명을 입력하세요 (기본: report_guide.md): ") or "report_guide.md"
         save_markdown(enhanced_result, file_path, title=f"{topic} 리포트 작성 통합 가이드")
         print(f"통합 가이드가 {file_path}에 저장되었습니다.")
+
 
 if __name__ == "__main__":
     main()

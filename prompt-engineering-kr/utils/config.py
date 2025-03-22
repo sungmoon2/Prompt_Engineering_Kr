@@ -15,8 +15,8 @@ DEFAULT_CONFIG = {
         "provider": "openai",
         "model": "gpt-4",
         "api_key_env": "OPENAI_API_KEY",
-        "temperature": 0.7,
-        "max_tokens": 1000
+        "temperature": 0.7
+        # "max_tokens": 
     },
     
     # 출력 설정

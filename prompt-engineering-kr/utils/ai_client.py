@@ -176,7 +176,7 @@ class AIClient:
 def get_completion(prompt: str, 
                   provider: str = "gemini", 
                   temperature: float = 0.7, 
-                  max_tokens: int = 1000,
+                  max_tokens: int = None,
                   system_prompt: Optional[str] = None,
                   **kwargs) -> str:
 
