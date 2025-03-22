@@ -1,169 +1,129 @@
 """
-누락된 챕터 파일 생성 스크립트
-챕터 2-7의 x.2, x.3, x.4, x.5 세부 챕터 파일 생성
+포트폴리오 개발 및 최적화
+
+취업 경쟁력을 높이기 위한 효과적인 포트폴리오 제작 전략
 """
 
 import os
+import sys
 
-def create_empty_file(path):
-    """빈 파일 생성"""
-    directory = os.path.dirname(path)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    with open(path, 'w', encoding='utf-8') as f:
-        pass
-    print(f"파일 생성: {path}")
+# 상위 디렉토리 추가하여 utils 모듈 import 가능하게 설정
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from utils.ai_client import get_completion
+from utils.prompt_builder import PromptBuilder
+from utils.file_handler import save_markdown
 
 def main():
-    # 현재 작업 디렉토리 확인 (prompt-engineering-kr 안에 있다고 가정)
-    cwd = os.getcwd()
-    if not os.path.basename(cwd) == "prompt-engineering-kr":
-        print("경고: 이 스크립트는 prompt-engineering-kr 디렉토리 내에서 실행되어야 합니다.")
-        choice = input("계속 진행하시겠습니까? (y/n): ")
-        if choice.lower() != 'y':
-            return
+    """
+    실습 코드 메인 함수
+    """
+    print("===== 포트폴리오 개발 및 최적화 =====")
     
-    # 누락된 챕터 2의 파일들
-    chapter2_missing = [
-        "2.2.1_task_analysis.py",
-        "2.2.2_algorithm_design.py",
-        "2.2.3_implementation_guide.py",
-        "2.2.4_code_request_strategy.py",
-        "2.3.1_error_diagnosis.py",
-        "2.3.2_code_improvement.py",
-        "2.3.3_code_explanation.py",
-        "2.3.4_style_enhancement.py",
-        "2.4.1_software_design.py",
-        "2.4.2_project_structure.py",
-        "2.4.3_requirements_definition.py",
-        "2.4.4_oop_design.py",
-        "2.5.1_code_documentation.py",
-        "2.5.2_readme_guide.py",
-        "2.5.3_api_documentation.py",
-        "2.5.4_tech_stack_description.py"
-    ]
+    # 사용자 입력 받기
+    field = input("전문 분야를 입력하세요 (예: 웹 개발, 그래픽 디자인, 마케팅): ")
+    career_stage = input("경력 단계를 입력하세요 (예: 신입, 주니어, 시니어): ")
+    key_skills = input("핵심 스킬을 입력하세요 (쉼표로 구분): ")
+    project_types = input("포트폴리오에 포함할 프로젝트 유형을 입력하세요: ")
+    target_audience = input("포트폴리오의 주요 대상을 입력하세요 (예: 채용담당자, 클라이언트): ")
     
-    # 누락된 챕터 3의 파일들
-    chapter3_missing = [
-        "3.2.1_data_interpretation.py",
-        "3.2.2_statistical_analysis.py",
-        "3.2.3_data_visualization.py",
-        "3.2.4_analysis_method_selection.py",
-        "3.3.1_paper_structure.py",
-        "3.3.2_literature_review.py",
-        "3.3.3_result_discussion.py",
-        "3.3.4_abstract_conclusion.py",
-        "3.4.1_experiment_consultation.py",
-        "3.4.2_variable_control.py",
-        "3.4.3_result_analysis_framework.py",
-        "3.4.4_experiment_limitations.py",
-        "3.5.1_research_presentation.py",
-        "3.5.2_poster_design.py",
-        "3.5.3_qa_preparation.py",
-        "3.5.4_feedback_utilization.py"
-    ]
+    # 기본 프롬프트 - 매우 단순하고 빈약한 버전
+    basic_prompt = f"""
+{field} 분야의 포트폴리오를 어떻게 만들면 좋을까?
+"""
     
-    # 누락된 챕터 4의 파일들
-    chapter4_missing = [
-        "4.2.1_portfolio_content_planning.py",
-        "4.2.2_project_description.py",
-        "4.2.3_design_direction.py",
-        "4.2.4_target_audience_design.py",
-        "4.3.1_job_specific_questions.py",
-        "4.3.2_experience_structured_response.py",
-        "4.3.3_pressure_question_strategy.py",
-        "4.3.4_interview_simulation.py",
-        "4.4.1_competition_proposal_writing.py",
-        "4.4.2_idea_differentiation.py",
-        "4.4.3_criteria_optimized_proposal.py",
-        "4.4.4_presentation_optimization.py",
-        "4.5.1_capability_assessment.py",
-        "4.5.2_job_specific_analysis.py",
-        "4.5.3_personal_branding.py",
-        "4.5.4_networking_preparation.py"
-    ]
+    print("\n===== 기본 프롬프트 =====")
+    print(basic_prompt)
     
-    # 누락된 챕터 5의 파일들
-    chapter5_missing = [
-        "5.2.1_complex_problem_decomposition.py",
-        "5.2.2_logical_reasoning_guide.py",
-        "5.2.3_error_detection.py",
-        "5.2.4_subject_specific_thinking.py",
-        "5.3.1_example_selection.py",
-        "5.3.2_pattern_recognition.py",
-        "5.3.3_zero_shot_learning.py",
-        "5.3.4_example_frameworks.py",
-        "5.4.1_document_format_control.py",
-        "5.4.2_structured_output.py",
-        "5.4.3_template_consistency.py",
-        "5.4.4_korean_document_guidelines.py",
-        "5.5.1_combined_pattern_prompts.py",
-        "5.5.2_prompt_chaining.py",
-        "5.5.3_feedback_improvement.py",
-        "5.5.4_complex_task_prompting.py"
-    ]
+    # 기본 프롬프트 실행
+    basic_result = get_completion(basic_prompt, temperature=0.7)
     
-    # 누락된 챕터 6의 파일들 
-    chapter6_missing = [
-        "6.1.1_assignment_planner.py",
-        "6.1.2_research_collector.py",
-        "6.1.3_report_workflow.py",
-        "6.1.4_review_process.py",
-        "6.2.1_job_document_workflow.py",
-        "6.2.2_company_research.py",
-        "6.2.3_interview_feedback_system.py",
-        "6.2.4_career_branding_strategy.py",
-        "6.3.1_idea_generation.py",
-        "6.3.2_team_project_planning.py",
-        "6.3.3_content_creation_workflow.py",
-        "6.3.4_creative_project_evaluation.py",
-        "6.4.1_study_material_summary.py",
-        "6.4.2_personalized_learning_plan.py",
-        "6.4.3_review_reinforcement.py",
-        "6.4.4_exam_preparation_workflow.py",
-        "6.5.1_major_specific_cases.py",
-        "6.5.2_academic_year_templates.py",
-        "6.5.3_student_success_analysis.py",
-        "6.5.4_prompt_library_guide.py"
-    ]
+    print("\n===== 기본 포트폴리오 가이드 결과 =====")
+    print(basic_result)
     
-    # 누락된 챕터 7의 파일들
-    chapter7_missing = [
-        "7.2.1_ai_content_citation.py",
-        "7.2.2_plagiarism_prevention.py",
-        "7.2.3_transparency_maintenance.py",
-        "7.2.4_academic_writing_position.py",
-        "7.3.1_response_evaluation.py",
-        "7.3.2_creativity_balance.py",
-        "7.3.3_dependency_prevention.py",
-        "7.3.4_learning_enhancement.py",
-        "7.4.1_sensitive_info_prompts.py",
-        "7.4.2_anonymization_strategy.py",
-        "7.4.3_data_sharing_precautions.py",
-        "7.4.4_security_awareness.py",
-        "7.5.1_cost_effective_usage.py",
-        "7.5.2_token_optimization.py",
-        "7.5.3_learning_capability_balance.py",
-        "7.5.4_technology_adaptation.py"
-    ]
+    print("\n" + "-"*60)
     
-    # 모든 누락된 파일 리스트
-    missing_files = {
-        "chapter2": chapter2_missing,
-        "chapter3": chapter3_missing,
-        "chapter4": chapter4_missing,
-        "chapter5": chapter5_missing,
-        "chapter6": chapter6_missing,
-        "chapter7": chapter7_missing
-    }
+    # 향상된 프롬프트 - PromptBuilder 활용
+    prompt_builder = PromptBuilder()
     
-    # 누락된 파일 생성
-    for chapter, files in missing_files.items():
-        for file in files:
-            file_path = os.path.join("exercises", chapter, file)
-            create_empty_file(file_path)
+    # 역할 설정
+    prompt_builder.add_role(f"{field} 분야 포트폴리오 전문가", 
+                           f"{field} 분야에서 수많은 전문가들의 포트폴리오를 컨설팅하고, 채용 과정에서 포트폴리오를 평가해온 경험이 풍부한 전문가로, 취업과 경력 개발에 효과적인 포트폴리오 전략을 제시합니다.")
     
-    print("\n모든 누락된 파일이 성공적으로 생성되었습니다!")
+    # 맥락 제공
+    prompt_builder.add_context(
+        f"전문 분야: {field}\n"
+        f"경력 단계: {career_stage}\n"
+        f"핵심 스킬: {key_skills}\n"
+        f"프로젝트 유형: {project_types}\n"
+        f"타겟 대상: {target_audience}"
+    )
+    
+    # 지시사항 추가
+    prompt_builder.add_instructions([
+        "1. 포트폴리오 전략 수립",
+        f"   - {field} 분야에서 효과적인 포트폴리오의 핵심 요소와 구성",
+        f"   - {career_stage} 단계에 적합한 포트폴리오 범위와 깊이",
+        f"   - {target_audience}의 관점에서 본 포트폴리오 평가 기준",
+        "   - 차별화된 개인 브랜드 구축 방법",
+        
+        "2. 프로젝트 선정 및 구성",
+        f"   - {key_skills}를 효과적으로 보여줄 수 있는 프로젝트 선정 기준",
+        f"   - {project_types}와 같은 프로젝트의 효과적인 구성 및 설명 방법",
+        "   - 다양성과 전문성의 균형을 갖춘 프로젝트 포트폴리오 구성",
+        "   - 각 프로젝트의 문제 해결 과정과 결과를 효과적으로 제시하는 방법",
+        
+        "3. 포트폴리오 형식 및 플랫폼",
+        f"   - {field} 분야에 적합한 포트폴리오 형식 (웹사이트, PDF, 비디오 등)",
+        "   - 직관적이고 효과적인 네비게이션 및 레이아웃 설계",
+        "   - 반응형 디자인 및 사용자 경험 최적화",
+        "   - 적절한 플랫폼 선택 및 활용 전략",
+        
+        "4. 프로젝트 설명 및 스토리텔링",
+        "   - 각 프로젝트의 맥락, 도전 과제, 해결책, 결과를 명확히 전달하는 구조",
+        "   - 기술적 세부사항과 비즈니스 가치의 균형 있는 설명",
+        "   - 개인의 기여도와 역할을 효과적으로 강조하는 방법",
+        "   - 시각적 요소와 텍스트의 최적 조합",
+        
+        "5. 지속적인 관리 및 업데이트",
+        "   - 정기적인 포트폴리오 업데이트 전략",
+        "   - 피드백 수집 및 반영 방법",
+        "   - 트렌드와 산업 변화에 따른 포트폴리오 조정",
+        "   - 포트폴리오와 다른 취업 문서(이력서, LinkedIn 등)의 연계"
+    ])
+    
+    # 출력 형식 지정
+    prompt_builder.add_format_instructions(
+        "다음 섹션들을 포함하여 마크다운 형식으로 응답해주세요:\n"
+        "1. 효과적인 포트폴리오의 핵심 원칙\n"
+        "2. 포트폴리오 전략 및 구성 가이드\n"
+        "3. 프로젝트 선정 및 설명 방법\n"
+        "4. 시각적 표현 및 디자인 최적화\n"
+        "5. 포트폴리오 플랫폼 선택 가이드\n"
+        "6. 효과적인 프로젝트 설명 템플릿\n"
+        "7. 포트폴리오 평가 및 개선 체크리스트\n\n"
+        f"{field} 분야에 특화된 구체적인 예시와 실용적인 조언을 포함해주세요. {career_stage} 단계에 적합한 포트폴리오 개발 전략과 {target_audience}의 관점을 고려한 최적화 방법을 상세히 설명해주세요."
+    )
+    
+    # 프롬프트 빌드
+    enhanced_prompt = prompt_builder.build()
+    
+    print("\n===== 향상된 프롬프트 =====")
+    print(enhanced_prompt)
+    
+    # 향상된 프롬프트 실행
+    enhanced_result = get_completion(enhanced_prompt, temperature=0.5)
+    
+    print("\n===== 향상된 포트폴리오 가이드 결과 =====")
+    print(enhanced_result)
+    
+    # 결과 저장 (선택 사항)
+    save = input("\n포트폴리오 가이드를 파일로 저장하시겠습니까? (y/n): ")
+    if save.lower() == 'y':
+        file_path = input("저장할 파일명을 입력하세요 (기본: portfolio_guide.md): ") or "portfolio_guide.md"
+        save_markdown(enhanced_result, file_path, title=f"{field} 포트폴리오 개발 및 최적화 가이드")
+        print(f"포트폴리오 가이드가 {file_path}에 저장되었습니다.")
+
 
 if __name__ == "__main__":
     main()
