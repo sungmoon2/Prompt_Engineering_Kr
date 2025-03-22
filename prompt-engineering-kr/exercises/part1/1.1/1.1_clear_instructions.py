@@ -7,22 +7,18 @@ Part 1 - 섹션 1.1 실습 코드: 기본 프롬프트와 향상된 프롬프트
 
 import os
 import sys
+import re
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points, print_next_steps, print_comparison_points
-)
-from utils.example_data import get_examples_by_category
+from utils.exercise_template import run_exercise
 
-# 예제 주제 목록 (utils/example_data.py를 사용할 수도 있음)
+# 주제 옵션 정의
 INSTRUCTION_TOPICS = {
     "1": {"name": "여행 계획", "topic": "3박 4일 제주도 여행 계획", "output_format": "일정표"},
     "2": {"name": "레시피 요청", "topic": "초보자를 위한 파스타 레시피", "output_format": "단계별 가이드"},
@@ -31,56 +27,30 @@ INSTRUCTION_TOPICS = {
     "5": {"name": "역사 요약", "topic": "산업혁명의 주요 영향과 결과", "output_format": "시간순 요약"}
 }
 
-def main():
-    """메인 함수"""
-    print_header("명확한 지시문 작성하기")
-    print("효과적인 지시문을 작성하는 방법을 배우고 연습합니다.\n")
-    print("모호하고 일반적인 프롬프트와 명확하고 구체적인 프롬프트의 차이를 비교해봅시다.")
-    
-    # 1. 주제 선택 단계
-    print_step(1, "주제 선택")
-    
-    # 옵션 표시
-    print("\n지시문 작성 연습을 위한 주제 옵션:")
-    for key, value in INSTRUCTION_TOPICS.items():
-        print(f"  {key}. {value['name']}")
-    print("  0. 직접 주제 입력하기")
-    
-    choice = get_user_input("\n선택하세요", "1")
-    
-    if choice == "0":
-        topic = get_user_input("주제를 입력하세요", "여름 휴가 계획")
-        output_format = get_user_input("원하는 출력 형식을 입력하세요", "일정표")
-        purpose = get_user_input("이 정보를 사용할 목적을 입력하세요", "휴가 계획 수립")
-    else:
-        selected = INSTRUCTION_TOPICS.get(choice, INSTRUCTION_TOPICS["1"])
-        topic = selected["topic"]
-        output_format = selected["output_format"]
-        purpose = f"{selected['name']} 작성"
-    
-    print(f"\n선택한 주제: {topic}")
-    print(f"출력 형식: {output_format}")
-    print(f"사용 목적: {purpose}")
-    
-    # 2. 기본 프롬프트 실행 단계
-    print_step(2, "기본 프롬프트로 요청하기")
-    
-    # 기본 프롬프트 생성
-    basic_prompt = f"{topic}에 대해 알려주세요."
-    
-    print("\n기본 프롬프트:")
-    print(f"'{basic_prompt}'")
-    
-    # AI 응답 요청
-    print("\n응답 생성 중...")
-    basic_result = get_completion(basic_prompt, temperature=0.7)
-    
-    print("\n✅ 기본 프롬프트 응답이 생성되었습니다.")
-    
-    # 3. 향상된 프롬프트 실행 단계
-    print_step(3, "향상된 프롬프트로 요청하기")
-    
-    # PromptBuilder를 사용한 향상된 프롬프트 작성
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "사용 맥락 제공: 목적과 활용 방법 명시",
+        "구체적 지시사항: 5가지 세부 요청 추가",
+        "출력 형식 지정: 원하는 형식과 구조 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "명확한 맥락과 목적을 제공하면 더 관련성 높은 응답을 얻을 수 있습니다",
+    "구체적인 지시사항이 모호한 요청보다 훨씬 효과적입니다",
+    "원하는 출력 형식을 명시하면 응답의 구조가 개선됩니다",
+    "실제 사용 목적을 공유하면 AI가 더 적합한 정보를 제공할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
     builder = PromptBuilder()
     
     # 사용 맥락 정보 추가
@@ -104,104 +74,91 @@ def main():
         f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요."
     )
     
-    enhanced_prompt = builder.build()
+    return builder.build()
+
+def save_to_chapter_folder(content, filename, title=None, chapter_id=None, chapter_name=None):
+    """
+    결과를 챕터별 폴더에 저장하는 간단한 함수
     
-    # 프롬프트 요약 정보 출력
-    print_prompt_summary("향상된", [
-        "사용 맥락 제공: 목적과 활용 방법 명시",
-        "구체적 지시사항: 5가지 세부 요청 추가",
-        "출력 형식 지정: 원하는 형식과 구조 요청"
-    ])
+    Args:
+        content (str): 저장할 내용
+        filename (str): 파일명
+        title (str, optional): 문서 제목
+        chapter_id (str, optional): 챕터 ID (없으면 경로에서 추출)
+        chapter_name (str, optional): 챕터 이름 (없으면 파일명에서 추출)
     
-    # AI 응답 요청
-    print("\n응답 생성 중...")
-    enhanced_result = get_completion(enhanced_prompt, temperature=0.5)
+    Returns:
+        str: 저장된 파일 경로
+    """
+    # 프로젝트 루트 찾기
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    print("\n✅ 향상된 프롬프트 응답이 생성되었습니다.")
-    
-    # 4. 결과 비교 및 저장 단계
-    print_step(4, "결과 비교 및 저장")
-    
-    # 결과 비교 표시
-    display_results_comparison(basic_result, enhanced_result, 300)
-    
-    # 프롬프트 개선 효과 설명
-    print_comparison_points({
-        "1. 기본 프롬프트의 한계:": [
-            "모호하고 일반적인 요청",
-            "목적과 활용 방법이 명시되지 않음",
-            "원하는 출력 형식이 지정되지 않음"
-        ],
-        "2. 향상된 프롬프트의 장점:": [
-            "명확한 맥락과 목적 제시",
-            "구체적인 요구사항 명시",
-            "원하는 출력 형식과 구조 지정",
-            "실제 사용 목적에 맞는 정보 요청"
-        ]
-    })
-    
-    # 결과 저장
-    save_option = get_user_input("\n결과를 파일로 저장하시겠습니까? (y/n)", "y")
-    if save_option.lower() in ['y', 'yes']:
-        # 파일명 생성 및 저장 경로 설정
-        safe_topic = topic.replace(' ', '_').lower()
-        results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "results")
-        os.makedirs(results_dir, exist_ok=True)
+    # 챕터 ID가 제공되지 않은 경우 경로에서 추출
+    if not chapter_id:
+        # 경로에서 챕터 ID 추출 시도
+        dir_path = current_dir.replace('\\', '/')
         
-        # 기본 응답 저장
-        basic_filename = os.path.join(results_dir, f"basic_{safe_topic}.md")
-        save_markdown(basic_result, basic_filename, title=f"{topic} - 기본 프롬프트 결과")
-        print(f"기본 응답이 '{basic_filename}'에 저장되었습니다.")
-        
-        # 향상된 응답 저장
-        enhanced_filename = os.path.join(results_dir, f"enhanced_{safe_topic}.md")
-        save_markdown(enhanced_result, enhanced_filename, title=f"{topic} - 향상된 프롬프트 결과")
-        print(f"향상된 응답이 '{enhanced_filename}'에 저장되었습니다.")
-        
-        # 프롬프트 비교 저장
-        comparison_filename = os.path.join(results_dir, f"comparison_{safe_topic}.md")
-        save_markdown(f"""# {topic} 프롬프트 비교
-
-## 기본 프롬프트
-```
-{basic_prompt}
-```
-
-## 향상된 프롬프트
-```
-{enhanced_prompt}
-```
-
-## 주요 개선점
-1. **맥락 제공**: 목적과 활용 방법 명시
-2. **구체적 지시사항**: 5가지 세부 요청 추가
-3. **출력 형식 지정**: 원하는 형식과 구조 요청
-
-## 효과
-향상된 프롬프트는 더 구체적이고 맥락에 맞는 응답을 생성합니다.
-기본 프롬프트는 일반적인 정보를 제공하는 반면, 향상된 프롬프트는
-실제 사용 목적에 맞는 구조화된 정보를 제공합니다.
-""", comparison_filename)
-        print(f"프롬프트 비교가 '{comparison_filename}'에 저장되었습니다.")
+        # exercises/part1/1.1/ 형태에서 추출
+        match = re.search(r'/exercises/part\d+/(\d+\.\d+)/', dir_path)
+        if match:
+            chapter_id = match.group(1)
+        else:
+            # 마지막 디렉토리가 숫자 형식인지 확인
+            last_dir = os.path.basename(current_dir)
+            if re.match(r'^\d+\.\d+$', last_dir):
+                chapter_id = last_dir
+            else:
+                # 기본값
+                chapter_id = "1.1"
     
-    # 5. 학습 내용 정리 단계
-    print_step(5, "학습 내용 정리")
+    # 챕터 이름이 제공되지 않은 경우 기본값 사용
+    if not chapter_name:
+        chapter_name = "clear_instructions"
     
-    # 학습 포인트 출력
-    print_learning_points([
-        "명확한 맥락과 목적을 제공하면 더 관련성 높은 응답을 얻을 수 있습니다",
-        "구체적인 지시사항이 모호한 요청보다 훨씬 효과적입니다",
-        "원하는 출력 형식을 명시하면 응답의 구조가 개선됩니다",
-        "실제 사용 목적을 공유하면 AI가 더 적합한 정보를 제공할 수 있습니다"
-    ])
+    # 결과 디렉토리 경로 생성
+    folder_name = f"{chapter_id}_{chapter_name}"
+    results_dir = os.path.join(project_root, "results", folder_name)
     
-    # 다음 단계 제안
-    print_next_steps([
-        "다른 주제에 동일한 프롬프트 구조를 적용해보세요",
-        "지시사항의 세부 항목을 변경하면서 응답의 변화를 관찰해보세요",
-        "더 다양한 출력 형식을 요청해보세요 (표, 목록, 단계별 가이드 등)",
-        "여러 종류의 맥락 정보를 추가하면서 응답의 변화를 확인해보세요"
-    ])
+    # 디렉토리가 없으면 생성
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # 파일 확장자 확인
+    if not filename.endswith(('.md', '.txt', '.json', '.csv')):
+        filename += '.md'
+    
+    # 파일 경로 생성
+    file_path = os.path.join(results_dir, filename)
+    
+    # 내용에 제목 추가 (마크다운인 경우)
+    if title and filename.endswith('.md'):
+        content = f"# {title}\n\n{content}"
+    
+    # 파일 저장
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    
+    print(f"결과가 저장되었습니다: {file_path}")
+    return file_path
+
+def main():
+    """메인 함수"""
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    result = run_exercise(
+        title="명확한 지시문 작성하기",
+        topic_options=INSTRUCTION_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
+    
+    # 직접 챕터 폴더를 생성하고 결과 저장
+    if result:
+        save_to_chapter_folder(
+            content=result,
+            filename="clear_instructions_result.md",
+            title="명확한 지시문 작성하기 실습 결과"
+        )
 
 if __name__ == "__main__":
     try:

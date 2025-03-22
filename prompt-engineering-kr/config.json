@@ -1,0 +1,23 @@
+{
+  "ai": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "api_key_env": "OPENAI_API_KEY",
+    "temperature": 0.7
+  },
+  "output": {
+    "default_format": "markdown",
+    "save_results": true,
+    "results_dir": "results",
+    "use_chapter_folders": true
+  },
+  "examples": {
+    "use_examples": true,
+    "examples_dir": "examples"
+  },
+  "logging": {
+    "enabled": true,
+    "log_level": "INFO",
+    "log_file": "prompt_engineering.log"
+  }
+}

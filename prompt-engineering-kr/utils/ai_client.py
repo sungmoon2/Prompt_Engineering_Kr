@@ -6,7 +6,7 @@ AI 모델 연결 및 응답 처리 모듈
 import os
 import requests
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
 
 # .env 파일 로드

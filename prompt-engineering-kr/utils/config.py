@@ -23,7 +23,8 @@ DEFAULT_CONFIG = {
     "output": {
         "default_format": "markdown",
         "save_results": True,
-        "results_dir": "results"
+        "results_dir": "results",
+        "use_chapter_folders": True  # 챕터별 폴더 사용 여부 설정 추가
     },
     
     # 학습 예제 설정
