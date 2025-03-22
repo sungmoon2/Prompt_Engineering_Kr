@@ -1,78 +1,97 @@
 """
 프롬프트 엔지니어링 교안 메인 모듈
 
-다양한 챕터의 실습 코드를 생성하고 실행하는 기능을 제공합니다.
+다양한 파트의 실습 코드를 실행하고 관리하는 기능을 제공합니다.
 """
 
 import os
 import sys
 import argparse
 from typing import Dict, List, Any, Optional
+import shutil
 
-from utils.config import load_config, get_setting
-from utils.logger import setup_logger, get_logger
-from utils.script_generator import create_project_structure
-from utils.example_provider import get_sample_research_topics
-
-# 교안 챕터 정보
-COURSE_CHAPTERS = [
-    # 1.1 리포트 품질 향상 기법
-    {"chapter_id": "1.1", "title": "리포트 품질 향상 기법", 
-     "description": "주제 분석, 논리적 구조 설계, 인용 최적화, 맞춤형 과제 작성을 위한 통합 도구"},
-    {"chapter_id": "1.1.1", "title": "주제 분석 및 논점 도출을 위한 프롬프트", 
-     "description": "주제를 깊이 있게 분석하고 핵심 논점을 도출하기 위한 프롬프트 기술"},
-    {"chapter_id": "1.1.2", "title": "논리적 구조와 흐름 설계 프롬프트", 
-     "description": "효과적인 리포트 구조와 논리적 흐름을 설계하는 프롬프트 패턴"},
-    {"chapter_id": "1.1.3", "title": "참고문헌 및 인용 최적화 전략", 
-     "description": "학술적 인용과 참고문헌 관리를 최적화하는 프롬프트 기법"},
-    {"chapter_id": "1.1.4", "title": "교수 유형별 맞춤형 과제 작성 가이드", 
-     "description": "다양한 교수 유형과 평가 스타일에 맞춘 과제 작성 전략"},
+# 교안 파트 및 섹션 정보
+COURSE_PARTS = [
+    # Part 0: 프롬프트 엔지니어링 입문
+    {"part_id": "0", "title": "프롬프트 엔지니어링 입문", 
+     "description": "생성형 AI와 프롬프트 엔지니어링의 기본 개념 이해"},
+    {"part_id": "0.1", "title": "생성형 AI와 프롬프트 엔지니어링 이해하기", 
+     "description": "생성형 AI의 기본 개념과 프롬프트 엔지니어링의 중요성"},
+    {"part_id": "0.2", "title": "대화 모델로 접근하기", 
+     "description": "AI와의 대화를 통한 직관적 이해 및 실험 마인드셋"},
+    {"part_id": "0.3", "title": "실습 환경 준비 및 기본 팁", 
+     "description": "API 연결 설정 및 효과적인 사용 팁"},
     
-    # 1.2 전공별 맞춤형 리포트 작성
-    {"chapter_id": "1.2", "title": "전공별 맞춤형 리포트 작성", 
-     "description": "다양한 학문 분야별 최적화된 리포트 작성 도구"},
-    {"chapter_id": "1.2.1", "title": "인문사회계열 리포트 작성 프롬프트", 
-     "description": "인문학, 사회과학 분야의 리포트 작성을 위한 특화 프롬프트"},
-    {"chapter_id": "1.2.2", "title": "이공계 실험 보고서 템플릿", 
-     "description": "공학, 자연과학 분야의 실험 보고서 작성을 위한 템플릿"},
+    # Part 1: 기초 프롬프트 작성법
+    {"part_id": "1", "title": "기초 프롬프트 작성법", 
+     "description": "효과적인 지시문 작성과 정보 수집 방법"},
+    {"part_id": "1.1", "title": "명확한 지시문 작성하기", 
+     "description": "구체적인 요청과 명확한 지시로 원하는 응답 얻기"},
+    {"part_id": "1.2", "title": "배경 지식 없이 질문하기", 
+     "description": "낯선 주제에 대해 단계적으로 지식 쌓는 방법"},
+    {"part_id": "1.3", "title": "정보 수집과 정제의 기술", 
+     "description": "AI를 활용한 효과적인 정보 수집 및 정리 방법"},
+    {"part_id": "1.4", "title": "낯선 주제 탐색하기", 
+     "description": "완전히 새로운 주제에 대한 탐색 전략"},
     
-    # 2.1 코딩 개념 이해 및 학습
-    {"chapter_id": "2.1", "title": "코딩 개념 이해 및 학습", 
-     "description": "프로그래밍 개념 학습과 이해를 돕는 도구"},
-    {"chapter_id": "2.1.1", "title": "프로그래밍 개념 설명 프롬프트", 
-     "description": "복잡한 프로그래밍 개념을 이해하기 쉽게 설명받는 프롬프트 기법"},
+    # Part 2: 복잡한 과제 분해하기
+    {"part_id": "2", "title": "복잡한 과제 분해하기", 
+     "description": "큰 프로젝트와 과제를 관리 가능한 단위로 분해하는 방법"},
+    {"part_id": "2.1", "title": "과제 분석과 분해 전략", 
+     "description": "복잡한 과제의 요구사항 파악 및 구조화 방법"},
+    {"part_id": "2.2", "title": "정보 수집과 검증의 순환", 
+     "description": "필요한 정보를 수집하고 검증하는 반복적 과정"},
+    {"part_id": "2.3", "title": "통합적 관점 구축하기", 
+     "description": "수집한 정보를 종합하여 전체 그림 그리기"},
+    {"part_id": "2.4", "title": "복잡한 과제 분해 연습", 
+     "description": "실제 과제를 단계별로 분해하는 실습"},
     
-    # 3.1 연구 계획 및 설계
-    {"chapter_id": "3.1", "title": "연구 계획 및 설계", 
-     "description": "효과적인 연구 계획과 방법론 설계를 위한 도구"},
-    {"chapter_id": "3.1.1", "title": "연구 주제 구체화 프롬프트", 
-     "description": "광범위한 관심사에서 구체적인 연구 주제로 좁혀나가는 프롬프트 기법"},
+    # Part 3: 맥락 유지와 대화 관리
+    {"part_id": "3", "title": "맥락 유지와 대화 관리", 
+     "description": "긴 대화와 복잡한 맥락을 효과적으로 관리하는 방법"},
+    {"part_id": "3.1", "title": "토큰 제한 극복하기", 
+     "description": "AI 모델의 토큰 제한을 효과적으로 다루는 전략"},
+    {"part_id": "3.2", "title": "대화 재설정 기술", 
+     "description": "대화를 효과적으로 재시작하고 맥락 유지하기"},
+    {"part_id": "3.3", "title": "프롬프트 관리 시스템", 
+     "description": "프롬프트 버전 관리와 체계적 저장 방법"},
+    {"part_id": "3.4", "title": "장기 프로젝트 관리하기", 
+     "description": "장기간 진행되는 프로젝트의 일관성 유지 방법"},
     
-    # 4.1 이력서 및 자기소개서 작성
-    {"chapter_id": "4.1", "title": "이력서 및 자기소개서 작성", 
-     "description": "취업 준비를 위한 문서 작성 최적화 도구"},
-    {"chapter_id": "4.1.1", "title": "직무별 이력서 최적화 프롬프트", 
-     "description": "다양한 직무와 산업에 맞춘 이력서 작성을 위한 프롬프트 패턴"},
+    # Part 4: 학술 에세이 및 보고서 작성
+    {"part_id": "4", "title": "학술 에세이 및 보고서 작성", 
+     "description": "학술적 글쓰기 향상을 위한 AI 활용 방법"},
+    {"part_id": "4.1", "title": "연구 주제 탐색 및 구체화", 
+     "description": "광범위한 연구 분야에서 구체적 주제 도출"},
+    {"part_id": "4.2", "title": "논리적 구조 개발", 
+     "description": "설득력 있는 에세이 구조와 논증 흐름 설계"},
+    {"part_id": "4.3", "title": "학술적 표현과 인용", 
+     "description": "효과적인 학술 표현과 올바른 인용 방법"},
+    {"part_id": "4.4", "title": "보고서 개선하기", 
+     "description": "기존 보고서의 품질을 향상시키는 방법"},
     
-    # 5.1 역할 기반 프롬프팅
-    {"chapter_id": "5.1", "title": "역할 기반 프롬프팅", 
-     "description": "다양한 전문가 역할을 활용한 프롬프트 기법"},
-    {"chapter_id": "5.1.1", "title": "학술/전문가 역할 지정 프롬프트", 
-     "description": "특정 분야의 전문가 관점에서 응답을 유도하는 프롬프트 패턴"},
+    # Part 5: 프로그래밍 과제 해결
+    {"part_id": "5", "title": "프로그래밍 과제 해결", 
+     "description": "코딩 문제 해결과 소프트웨어 개발 지원"},
+    {"part_id": "5.1", "title": "코딩 개념 이해하기", 
+     "description": "복잡한 프로그래밍 개념의 학습과 적용"},
+    {"part_id": "5.2", "title": "코드 생성과 최적화", 
+     "description": "효율적인 코드 작성과 성능 최적화"},
+    {"part_id": "5.3", "title": "프로젝트 구조화와 관리", 
+     "description": "소프트웨어 프로젝트의 아키텍처 설계"},
+    {"part_id": "5.4", "title": "프로그래밍 프로젝트 개발", 
+     "description": "전체 프로그래밍 프로젝트 진행 전략"},
     
-    # 5.2 단계적 사고 유도
-    {"chapter_id": "5.2", "title": "단계적 사고 유도 (Chain-of-Thought)", 
-     "description": "복잡한 문제를 단계별로 사고하는 프롬프트 패턴"},
-    
-    # 6.1 학기 과제 완벽 지원 시스템
-    {"chapter_id": "6.1", "title": "학기 과제 완벽 지원 시스템", 
-     "description": "과목별 과제 계획과 실행을 위한 통합 시스템"},
-    
-    # 7.1 AI 활용의 윤리적 경계
-    {"chapter_id": "7.1", "title": "AI 활용의 윤리적 경계", 
-     "description": "학업에서 AI 활용의 윤리적 가이드라인"}
+    # Part 6-9 요약 (간략화)
+    {"part_id": "6", "title": "도메인별 프롬프트 최적화", 
+     "description": "다양한 학문 및 전문 분야별 맞춤형 프롬프트 전략"},
+    {"part_id": "7", "title": "고급 프롬프트 테크닉", 
+     "description": "역할 기반 프롬프팅, 단계적 사고 유도 등 고급 기법"},
+    {"part_id": "8", "title": "프롬프트 디버깅과 개선", 
+     "description": "문제가 있는 프롬프트의 분석과 체계적 개선 방법"},
+    {"part_id": "9", "title": "윤리적 활용과 한계 인식", 
+     "description": "AI의 책임감 있는 활용과 학문적 진실성 유지"}
 ]
-
 
 def parse_arguments():
     """
@@ -82,112 +101,136 @@ def parse_arguments():
         파싱된 인자
     """
     parser = argparse.ArgumentParser(description="프롬프트 엔지니어링 교안 실행 도구")
-    
-    parser.add_argument('--setup', action='store_true', 
-                        help='프로젝트 구조 초기 설정')
-    parser.add_argument('--chapter', type=str, 
-                        help='실행할 챕터 ID (예: 1.1.2)')
+
+    parser.add_argument('--run', type=str, 
+                        help='실행할 파트/섹션 ID (예: 1.2)')
     parser.add_argument('--list', action='store_true', 
-                        help='사용 가능한 챕터 목록 표시')
+                        help='사용 가능한 파트 및 섹션 목록 표시')
     parser.add_argument('--config', action='store_true', 
                         help='설정 파일 확인 및 수정')
     
     return parser.parse_args()
 
-
-def setup_project():
+def list_parts():
     """
-    프로젝트 초기 설정 (디렉토리 및 파일 생성)
+    사용 가능한 파트 및 섹션 목록 표시
     """
-    logger = get_logger()
-    logger.info("프로젝트 구조 초기화 중...")
+    print("\n===== 프롬프트 엔지니어링 교안 목차 =====\n")
     
-    # 필요한 디렉토리 생성
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    dirs = ["chapter1", "chapter2", "chapter3", "chapter4", 
-           "chapter5", "chapter6", "chapter7", "results", "examples", "logs"]
+    current_main_part = None
     
-    for d in dirs:
-        dir_path = os.path.join(base_dir, d)
-        os.makedirs(dir_path, exist_ok=True)
-        logger.info(f"디렉토리 생성: {dir_path}")
-    
-    # 모든 챕터 스크립트 생성
-    created_files = create_project_structure(COURSE_CHAPTERS, base_dir)
-    
-    logger.info(f"총 {len(created_files)} 개의 스크립트 파일이 생성되었습니다.")
-    print(f"\n프로젝트 구조가 성공적으로 초기화되었습니다.")
-    print(f"총 {len(created_files)} 개의 스크립트 파일이 생성되었습니다.")
-
-
-def list_chapters():
-    """
-    사용 가능한 챕터 목록 표시
-    """
-    print("\n===== 프롬프트 엔지니어링 교안 챕터 =====\n")
-    
-    current_main_chapter = None
-    
-    for chapter in COURSE_CHAPTERS:
-        chapter_id = chapter["chapter_id"]
-        title = chapter["title"]
-        description = chapter.get("description", "")
+    for part in COURSE_PARTS:
+        part_id = part["part_id"]
+        title = part["title"]
+        description = part.get("description", "")
         
-        # 메인 챕터 구분
-        main_chapter = chapter_id.split('.')[0]
-        if main_chapter != current_main_chapter:
-            current_main_chapter = main_chapter
-            print(f"\n[챕터 {main_chapter}]")
+        # 메인 파트 구분
+        if len(part_id) == 1:
+            current_main_part = part_id
+            print(f"\n[Part {part_id}] {title}")
+            print(f"  - {description}")
         
-        # 들여쓰기로 계층 표현
-        indent = "  " * (len(chapter_id.split('.')) - 1)
-        print(f"{indent}● {chapter_id}: {title}")
-        
-        if description:
-            print(f"{indent}  - {description}")
+        # 섹션 표시
+        elif "." in part_id:
+            main_part = part_id.split(".")[0]
+            # 들여쓰기로 계층 표현
+            print(f"  ● {part_id}: {title}")
+            if description:
+                print(f"    - {description}")
     
-    print("\n실행 방법: python main.py --chapter <챕터ID>")
+    print("\n실행 방법: python main.py --run <파트ID 또는 섹션ID>")
 
-
-def run_chapter(chapter_id: str):
+def run_exercise(part_id: str):
     """
-    특정 챕터 스크립트 실행
+    특정 파트 또는 섹션의 실습 코드 실행
     
     Args:
-        chapter_id: 실행할 챕터 ID
+        part_id: 실행할 파트 또는 섹션 ID (예: "1", "1.2")
     """
-    # 챕터 유효성 검사
-    valid_chapters = [c["chapter_id"] for c in COURSE_CHAPTERS]
-    if chapter_id not in valid_chapters:
-        print(f"오류: 챕터 '{chapter_id}'를 찾을 수 없습니다.")
-        print("사용 가능한 챕터 목록을 확인하려면 --list 옵션을 사용하세요.")
+    # 파트/섹션 유효성 검사
+    valid_parts = [p["part_id"] for p in COURSE_PARTS]
+    if part_id not in valid_parts:
+        print(f"오류: '{part_id}'를 찾을 수 없습니다.")
+        print("사용 가능한 파트 및 섹션 목록을 확인하려면 --list 옵션을 사용하세요.")
         return
     
-    # 챕터 정보 찾기
-    chapter_info = next((c for c in COURSE_CHAPTERS if c["chapter_id"] == chapter_id), None)
-    if not chapter_info:
-        print(f"오류: 챕터 '{chapter_id}' 정보를 찾을 수 없습니다.")
+    # 파트/섹션 정보 찾기
+    part_info = next((p for p in COURSE_PARTS if p["part_id"] == part_id), None)
+    if not part_info:
+        print(f"오류: '{part_id}' 정보를 찾을 수 없습니다.")
         return
+    
+    # 메인 파트인 경우 (예: "1", "2") - 해당 파트의 모든 섹션 실행
+    if len(part_id) == 1:
+        print(f"\n===== Part {part_id}: {part_info['title']} =====\n")
+        
+        # 해당 파트의 모든 섹션 찾기
+        sections = [p for p in COURSE_PARTS if p["part_id"].startswith(f"{part_id}.")]
+        
+        if not sections:
+            print(f"이 파트에 실행 가능한 섹션이 없습니다.")
+            return
+        
+        # 첫 번째 섹션만 실행 (또는 사용자 선택 가능)
+        first_section = sections[0]
+        print(f"섹션 {first_section['part_id']}: {first_section['title']}을(를) 실행합니다.\n")
+        run_section_exercise(first_section["part_id"])
+    
+    # 섹션인 경우 (예: "1.1", "2.3") - 해당 섹션 실행
+    else:
+        run_section_exercise(part_id)
+
+def run_section_exercise(section_id: str):
+    """
+    특정 섹션의 실습 코드 실행
+    
+    Args:
+        section_id: 실행할 섹션 ID (예: "1.2")
+    """
+    # 섹션 정보 찾기
+    section_info = next((p for p in COURSE_PARTS if p["part_id"] == section_id), None)
+    if not section_info:
+        print(f"오류: 섹션 '{section_id}' 정보를 찾을 수 없습니다.")
+        return
+    
+    main_part = section_id.split(".")[0]
     
     # 스크립트 파일 경로 구성
-    main_chapter = chapter_id.split('.')[0]
-    safe_title = chapter_info["title"].lower()
-    safe_title = ''.join(c if c.isalnum() else '_' for c in safe_title).replace('__', '_')
-    
     script_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        f"chapter{main_chapter}",
-        f"{chapter_id.replace('.', '_')}_{safe_title}.py"
+        "exercises",
+        f"part{main_part}",
+        section_id,
+        f"{section_id}_{section_info['title'].lower().replace(' ', '_').replace('-', '_')}.py"
     )
     
     # 파일 존재 확인
     if not os.path.exists(script_path):
-        print(f"오류: 스크립트 파일을 찾을 수 없습니다: {script_path}")
-        print("먼저 --setup 옵션으로 프로젝트를 초기화하세요.")
-        return
+        # 섹션의 모든 파일 경로 체크
+        section_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "exercises",
+            f"part{main_part}",
+            section_id
+        )
+        
+        # 디렉토리는 있지만 파일이 없는 경우
+        files = os.listdir(section_dir)
+        if not files:
+            print(f"오류: 실행할 파일이 없습니다. 섹션 {section_id} 디렉토리가 비어 있습니다.")
+            return
+        
+        # 첫 번째 파일 선택 (또는 특정 패턴 매칭)
+        for file in files:
+            if file.startswith(f"{section_id}_") and file.endswith(".py"):
+                script_path = os.path.join(section_dir, file)
+                break
+        else:
+            print(f"오류: 섹션 {section_id}에 적합한 실행 파일을 찾을 수 없습니다.")
+            return
     
     # 스크립트 실행
-    print(f"\n===== 챕터 {chapter_id}: {chapter_info['title']} =====\n")
+    print(f"\n===== 섹션 {section_id}: {section_info['title']} =====\n")
     
     try:
         # 상대 경로에서 모듈 import 문제 방지를 위해 해당 디렉토리로 이동
@@ -195,7 +238,7 @@ def run_chapter(chapter_id: str):
         script_dir = os.path.dirname(script_path)
         os.chdir(script_dir)
         
-        # 스크립트 실행 (exec 대신 import 사용)
+        # 스크립트 파일 이름 추출 (.py 제거)
         script_name = os.path.basename(script_path).replace('.py', '')
         sys.path.insert(0, script_dir)
         
@@ -213,90 +256,78 @@ def run_chapter(chapter_id: str):
     except Exception as e:
         print(f"스크립트 실행 중 오류 발생: {e}")
 
-
 def edit_config():
     """
     설정 파일 확인 및 수정
     """
-    config = load_config()
-    
-    print("\n===== 현재 설정 =====\n")
-    print(f"AI 제공자: {get_setting('ai.provider')}")
-    print(f"AI 모델: {get_setting('ai.model')}")
-    print(f"기본 온도: {get_setting('ai.temperature')}")
-    print(f"최대 토큰: {get_setting('ai.max_tokens')}")
-    print(f"결과 저장: {get_setting('output.save_results')}")
-    print(f"결과 디렉토리: {get_setting('output.results_dir')}")
-    print(f"로깅 활성화: {get_setting('logging.enabled')}")
-    
-    while True:
-        print("\n수정할 설정 선택 (종료하려면 q 입력):")
-        print("1. AI 제공자 (openai/anthropic)")
-        print("2. AI 모델")
-        print("3. 응답 온도 (0.0-1.0)")
-        print("4. 최대 토큰 수")
-        print("5. 결과 저장 여부")
-        print("6. 결과 디렉토리 경로")
-        print("7. 로깅 활성화 여부")
+    try:
+        from utils.config import load_config, get_setting, update_setting
         
-        choice = input("\n선택 (1-7, q): ").strip().lower()
+        config = load_config()
         
-        if choice == 'q':
-            break
+        print("\n===== 현재 설정 =====\n")
+        print(f"AI 제공자: {get_setting('ai.provider')}")
+        print(f"AI 모델: {get_setting('ai.model')}")
+        print(f"기본 온도: {get_setting('ai.temperature')}")
+        print(f"최대 토큰: {get_setting('ai.max_tokens')}")
+        print(f"결과 저장: {get_setting('output.save_results')}")
+        print(f"결과 디렉토리: {get_setting('output.results_dir')}")
+        
+        while True:
+            print("\n수정할 설정 선택 (종료하려면 q 입력):")
+            print("1. AI 제공자 (openai/gemini/anthropic)")
+            print("2. AI 모델")
+            print("3. 응답 온도 (0.0-1.0)")
+            print("4. 최대 토큰 수")
+            print("5. 결과 저장 여부")
+            print("6. 결과 디렉토리 경로")
             
-        try:
-            if choice == '1':
-                value = input("AI 제공자 (openai/anthropic): ").strip()
-                from utils.config import update_setting
-                update_setting('ai.provider', value)
-                
-            elif choice == '2':
-                value = input("AI 모델: ").strip()
-                from utils.config import update_setting
-                update_setting('ai.model', value)
-                
-            elif choice == '3':
-                value = float(input("응답 온도 (0.0-1.0): ").strip())
-                from utils.config import update_setting
-                update_setting('ai.temperature', value)
-                
-            elif choice == '4':
-                value = int(input("최대 토큰 수: ").strip())
-                from utils.config import update_setting
-                update_setting('ai.max_tokens', value)
-                
-            elif choice == '5':
-                value = input("결과 저장 여부 (true/false): ").strip().lower() == 'true'
-                from utils.config import update_setting
-                update_setting('output.save_results', value)
-                
-            elif choice == '6':
-                value = input("결과 디렉토리 경로: ").strip()
-                from utils.config import update_setting
-                update_setting('output.results_dir', value)
-                
-            elif choice == '7':
-                value = input("로깅 활성화 여부 (true/false): ").strip().lower() == 'true'
-                from utils.config import update_setting
-                update_setting('logging.enabled', value)
-                
-            else:
-                print("잘못된 선택입니다.")
-                continue
-                
-            print("설정이 업데이트되었습니다.")
+            choice = input("\n선택 (1-6, q): ").strip().lower()
             
-        except Exception as e:
-            print(f"설정 업데이트 중 오류 발생: {e}")
-
+            if choice == 'q':
+                break
+                
+            try:
+                if choice == '1':
+                    value = input("AI 제공자 (openai/gemini/anthropic): ").strip()
+                    update_setting('ai.provider', value)
+                    
+                elif choice == '2':
+                    value = input("AI 모델: ").strip()
+                    update_setting('ai.model', value)
+                    
+                elif choice == '3':
+                    value = float(input("응답 온도 (0.0-1.0): ").strip())
+                    update_setting('ai.temperature', value)
+                    
+                elif choice == '4':
+                    value = int(input("최대 토큰 수: ").strip())
+                    update_setting('ai.max_tokens', value)
+                    
+                elif choice == '5':
+                    value = input("결과 저장 여부 (true/false): ").strip().lower() == 'true'
+                    update_setting('output.save_results', value)
+                    
+                elif choice == '6':
+                    value = input("결과 디렉토리 경로: ").strip()
+                    update_setting('output.results_dir', value)
+                    
+                else:
+                    print("잘못된 선택입니다.")
+                    continue
+                    
+                print("설정이 업데이트되었습니다.")
+                
+            except Exception as e:
+                print(f"설정 업데이트 중 오류 발생: {e}")
+    except ImportError:
+        print("오류: utils.config 모듈을 불러올 수 없습니다.")
+        print("설정 관련 기능을 사용하려면 필요한 모듈을 설치하세요.")
 
 def main():
     """
     메인 함수
     """
-    # 로거 설정
-    setup_logger()
-    
     # 명령줄 인자 파싱
     args = parse_arguments()
     
@@ -304,20 +335,18 @@ def main():
     if args.setup:
         setup_project()
     elif args.list:
-        list_chapters()
+        list_parts()
     elif args.config:
         edit_config()
-    elif args.chapter:
-        run_chapter(args.chapter)
+    elif args.run:
+        run_exercise(args.run)
     else:
         # 기본: 사용법 표시
         print("\n프롬프트 엔지니어링 교안 실행 도구\n")
         print("사용법:")
-        print("  python main.py --setup       # 프로젝트 구조 초기화")
-        print("  python main.py --list        # 챕터 목록 표시")
-        print("  python main.py --chapter 1.1 # 특정 챕터 실행")
+        print("  python main.py --list        # 목차 및 가용 파트 표시")
+        print("  python main.py --run 1.2     # 특정 파트/섹션 실행")
         print("  python main.py --config      # 설정 확인 및 수정")
-
 
 if __name__ == "__main__":
     main()
