@@ -18,6 +18,7 @@ from utils.ui_helpers import (
     print_learning_points
 )
 from utils.example_data import get_examples_by_category
+from utils.chapter_utils import get_chapter_save_path
 
 def run_exercise(
     title: str,
@@ -38,6 +39,12 @@ def run_exercise(
         prompt_summary: 프롬프트 요약 정보
         learning_points: 학습 포인트 목록
     """
+    # 디버그 정보 출력
+    frame = inspect.stack()[1]
+    calling_file = frame.filename
+    print(f"실행 파일: {calling_file}")
+    print(f"파일 이름: {os.path.basename(calling_file)}")
+    
     print_header(title)
     
     # 1. 주제 선택 단계
@@ -94,7 +101,7 @@ def run_exercise(
     # 결과 저장
     save_option = get_user_input("\n결과를 파일로 저장하시겠습니까? (y/n)", "y")
     if save_option.lower() in ['y', 'yes']:
-        save_results(topic, basic_prompt, basic_result, enhanced_prompt, enhanced_result)
+        save_results(topic, basic_prompt, basic_result, enhanced_prompt, enhanced_result, calling_file)
     
     # 5. 학습 내용 정리 단계
     print_step(5, "학습 내용 정리")
@@ -135,13 +142,83 @@ def select_topic(topic_options: Dict[str, Any]) -> Tuple[str, str, str]:
     
     return topic, purpose, output_format
 
+def save_comparison(basic_prompt, basic_result, enhanced_prompt, enhanced_result, topic, filename=None, calling_file=None):
+    """
+    기본 프롬프트와 향상된 프롬프트의 비교 결과를 저장합니다.
+    
+    Args:
+        basic_prompt: 기본 프롬프트
+        basic_result: 기본 프롬프트 결과
+        enhanced_prompt: 향상된 프롬프트
+        enhanced_result: 향상된 프롬프트 결과
+        topic: 주제
+        filename: 파일 이름 (없으면 자동 생성)
+        calling_file: 호출 파일 경로 (없으면 호출 스택에서 추출)
+        
+    Returns:
+        저장된 파일의 절대 경로
+    """
+    # 호출 파일이 제공되지 않으면 호출 스택에서 추출
+    if calling_file is None:
+        frame = inspect.stack()[1]
+        calling_file = frame.filename
+    
+    # 파일 이름이 제공되지 않으면 주제에서 생성
+    if filename is None:
+        safe_topic = topic.replace(' ', '_').lower()
+        filename = f"comparison_{safe_topic}.md"
+    
+    # 비교 내용 생성
+    comparison_content = f"""# {topic} 프롬프트 비교
+
+## 기본 프롬프트
+```
+{basic_prompt}
+```
+
+## 향상된 프롬프트
+```
+{enhanced_prompt}
+```
+
+## 기본 프롬프트 결과
+{basic_result}
+
+## 향상된 프롬프트 결과
+{enhanced_result}
+
+## 주요 개선점
+1. **맥락 제공**: 목적과 활용 방법 명시
+2. **구체적 지시사항**: 세부 요청 추가
+3. **출력 형식 지정**: 원하는 형식과 구조 요청
+
+## 효과
+향상된 프롬프트는 더 구체적이고 맥락에 맞는 응답을 생성합니다.
+기본 프롬프트는 일반적인 정보를 제공하는 반면, 향상된 프롬프트는
+실제 사용 목적에 맞는 구조화된 정보를 제공합니다.
+"""
+    
+    # 결과 저장 - calling_file 전달
+    save_path = get_chapter_save_path(calling_file)
+    
+    # 전체 파일 경로
+    file_path = os.path.join(save_path, filename)
+    
+    # 파일 저장
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(comparison_content)
+    
+    print(f"결과가 저장되었습니다: {file_path}")
+    return file_path
+
 def save_results(
     topic: str,
     basic_prompt: str,
     basic_result: str,
     enhanced_prompt: str,
-    enhanced_result: str
-) -> None:
+    enhanced_result: str,
+    calling_file: str = None
+) -> str:
     """
     결과 저장 처리
     
@@ -151,53 +228,23 @@ def save_results(
         basic_result: 기본 결과
         enhanced_prompt: 향상된 프롬프트
         enhanced_result: 향상된 결과
+        calling_file: 호출 파일 경로 (없으면 호출 스택에서 추출)
+        
+    Returns:
+        결과 메시지
     """
-    import os
-    import re
-    import inspect
+    # 호출 파일이 제공되지 않으면 호출 스택에서 추출
+    if calling_file is None:
+        frame = inspect.stack()[1]
+        calling_file = frame.filename
     
     # 파일명 생성
     safe_topic = topic.replace(' ', '_').lower()
     
-    # 호출 스택에서 호출자 파일 가져오기
-    frame = inspect.stack()[1]
-    calling_file = os.path.abspath(frame.filename)
-    file_basename = os.path.basename(calling_file)
+    # 저장 경로 가져오기
+    chapter_dir = get_chapter_save_path(calling_file)
     
-    # 프로젝트 루트 찾기
-    project_root = os.path.dirname(calling_file)
-    while os.path.basename(project_root).lower() != 'prompt-engineering-kr':
-        parent = os.path.dirname(project_root)
-        if parent == project_root:  # 루트에 도달
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(calling_file)))
-            break
-        project_root = parent
-    
-    # 파일 이름에서 챕터 번호 추출 (예: 1.1_clear_instructions.py -> part1/1.1)
-    match = re.match(r'^(\d+)\.(\d+)(?:\.(\d+))?_.*\.py$', file_basename)
-    result_path = "unknown"
-    
-    if match:
-        part_num = match.group(1)
-        chapter_num = match.group(2)
-        subchapter_num = match.group(3)
-        
-        # 결과 경로 구성
-        part_path = f"part{part_num}"
-        chapter_path = f"{part_num}.{chapter_num}"
-        
-        if subchapter_num:
-            # 하위 챕터가 있는 경우 (예: 1.1.1)
-            result_path = os.path.join(part_path, chapter_path, f"{chapter_path}.{subchapter_num}")
-        else:
-            # 하위 챕터가 없는 경우 (예: 1.1)
-            result_path = os.path.join(part_path, chapter_path)
-    
-    # 결과 저장 디렉토리 생성
-    chapter_dir = os.path.join(project_root, "results", result_path)
-    os.makedirs(chapter_dir, exist_ok=True)
-    
-    print(f"\n결과를 {result_path} 폴더에 저장합니다...")
+    print(f"\n결과를 {os.path.relpath(chapter_dir, os.path.dirname(os.path.dirname(calling_file)))} 폴더에 저장합니다...")
     
     # 기본 응답 저장
     basic_filename = f"basic_{safe_topic}.md"
@@ -213,35 +260,17 @@ def save_results(
         f.write(f"# {topic} - 향상된 프롬프트 결과\n\n{enhanced_result}")
     print(f"향상된 응답이 저장되었습니다.")
     
-    # 비교 내용 생성 및 저장
+    # 비교 내용 저장 - calling_file 전달
     comparison_filename = f"comparison_{safe_topic}.md"
-    comparison_path = os.path.join(chapter_dir, comparison_filename)
-    comparison_content = f"""# {topic} 프롬프트 비교
-
-## 기본 프롬프트
-```
-{basic_prompt}
-```
-
-## 향상된 프롬프트
-```
-{enhanced_prompt}
-```
-
-## 주요 개선점
-1. **맥락 제공**: 목적과 활용 방법 명시
-2. **구체적 지시사항**: 세부 요청 추가
-3. **출력 형식 지정**: 원하는 형식과 구조 요청
-
-## 효과
-향상된 프롬프트는 더 구체적이고 맥락에 맞는 응답을 생성합니다.
-기본 프롬프트는 일반적인 정보를 제공하는 반면, 향상된 프롬프트는
-실제 사용 목적에 맞는 구조화된 정보를 제공합니다.
-"""
-    
-    # 비교 응답 저장
-    comparison_filename = f"comparison_{safe_topic}.md"
-    comparison_path = os.path.join(chapter_dir, comparison_filename)
-    with open(comparison_path, 'w', encoding='utf-8') as f:
-        f.write(comparison_content)
+    save_comparison(
+        basic_prompt, 
+        basic_result, 
+        enhanced_prompt, 
+        enhanced_result, 
+        topic, 
+        comparison_filename,
+        calling_file
+    )
     print(f"프롬프트 비교가 저장되었습니다.")
+    
+    return f"{topic} 관련 결과가 {chapter_dir} 디렉토리에 저장되었습니다."

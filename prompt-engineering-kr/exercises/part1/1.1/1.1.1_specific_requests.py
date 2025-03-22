@@ -7,7 +7,6 @@ Part 1 - 섹션 1.1.1 실습 코드: 명확하고 구체적인 요청을 통해
 
 import os
 import sys
-import re
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
@@ -141,74 +140,10 @@ def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
     
     return builder.build()
 
-def save_to_chapter_folder(content, filename, title=None, chapter_id=None, chapter_name=None):
-    """
-    결과를 챕터별 폴더에 저장하는 간단한 함수
-    
-    Args:
-        content (str): 저장할 내용
-        filename (str): 파일명
-        title (str, optional): 문서 제목
-        chapter_id (str, optional): 챕터 ID (없으면 경로에서 추출)
-        chapter_name (str, optional): 챕터 이름 (없으면 파일명에서 추출)
-    
-    Returns:
-        str: 저장된 파일 경로
-    """
-    # 프로젝트 루트 찾기
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # 챕터 ID가 제공되지 않은 경우 경로에서 추출
-    if not chapter_id:
-        # 경로에서 챕터 ID 추출 시도
-        dir_path = current_dir.replace('\\', '/')
-        
-        # exercises/part1/1.1/ 형태에서 추출
-        match = re.search(r'/exercises/part\d+/(\d+\.\d+)/', dir_path)
-        if match:
-            chapter_id = match.group(1)
-        else:
-            # 마지막 디렉토리가 숫자 형식인지 확인
-            last_dir = os.path.basename(current_dir)
-            if re.match(r'^\d+\.\d+$', last_dir):
-                chapter_id = last_dir
-            else:
-                # 기본값
-                chapter_id = "1.1.1"
-    
-    # 챕터 이름이 제공되지 않은 경우 기본값 사용
-    if not chapter_name:
-        chapter_name = "specific_requests"
-    
-    # 결과 디렉토리 경로 생성
-    folder_name = f"{chapter_id}_{chapter_name}"
-    results_dir = os.path.join(project_root, "results", folder_name)
-    
-    # 디렉토리가 없으면 생성
-    os.makedirs(results_dir, exist_ok=True)
-    
-    # 파일 확장자 확인
-    if not filename.endswith(('.md', '.txt', '.json', '.csv')):
-        filename += '.md'
-    
-    # 파일 경로 생성
-    file_path = os.path.join(results_dir, filename)
-    
-    # 내용에 제목 추가 (마크다운인 경우)
-    if title and filename.endswith('.md'):
-        content = f"# {title}\n\n{content}"
-    
-    # 파일 저장
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(content)
-    
-    print(f"결과가 저장되었습니다: {file_path}")
-    return file_path
-
 def main():
     """메인 함수"""
     # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
-    result = run_exercise(
+    run_exercise(
         title="구체적인 요청 작성하기",
         topic_options=SPECIFIC_REQUEST_TOPICS,
         get_basic_prompt=get_basic_prompt,
@@ -216,15 +151,6 @@ def main():
         prompt_summary=PROMPT_SUMMARY,
         learning_points=LEARNING_POINTS
     )
-    
-    # 직접 챕터 폴더를 생성하고 결과 저장
-    if result:
-        save_to_chapter_folder(
-            content=result,
-            filename="specific_requests_result.md",
-            title="구체적인 요청 작성하기 실습 결과",
-            chapter_id="1.1.1"
-        )
 
 if __name__ == "__main__":
     try:
