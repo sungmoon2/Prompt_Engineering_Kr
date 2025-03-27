@@ -1,7 +1,7 @@
 """
-Subtask_definition 실습 모듈
+실제 사례: 기업 분석 프로젝트 접근법 실습 모듈
 
-Part 2 - 섹션 2.4.1 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 2 - 섹션 2.4.1 실습 코드: 기업 분석 프로젝트에 복잡한 과제 분해 접근법을 적용하는 방법을 실습합니다.
 """
 
 import os
@@ -9,42 +9,139 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_subtask_definition_prompt, get_enhanced_subtask_definition_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+COMPANY_ANALYSIS_TOPICS = {
+    "1": {"name": "기업 가치 평가", "topic": "기업 가치 종합 평가 프로젝트", "output_format": "분석 프레임워크"},
+    "2": {"name": "사업 모델 분석", "topic": "비즈니스 모델 해부 및 평가", "output_format": "전략 분석서"},
+    "3": {"name": "경쟁력 분석", "topic": "기업 경쟁 우위 분석 프로젝트", "output_format": "경쟁력 평가"},
+    "4": {"name": "성장 전략 분석", "topic": "기업 성장 전략 수립 및 평가", "output_format": "전략 로드맵"},
+    "5": {"name": "투자 타당성", "topic": "기업 투자 타당성 종합 분석", "output_format": "투자 분석 보고서"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["기업 분석에 대한 일반적 접근법 요청"],
+    "enhanced": [
+        "체계적 분해: 기업 분석의 다양한 차원과 요소 파악",
+        "분석 프레임워크: 각 요소별 전문적 분석 도구 적용",
+        "통합적 접근: 정량적/정성적 요소 통합 및 관계 분석"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "기업 분석은 재무, 전략, 시장, 운영 등 다양한 차원을 종합적으로 고려해야 하는 복잡한 과제입니다",
+    "각 분석 영역에 적합한 전문 프레임워크를 적용하여 체계적으로 접근하는 것이 중요합니다",
+    "데이터 기반 정량적 분석과 직관적 정성적 분석을 균형있게 통합하는 것이 필요합니다",
+    "기업의 현재 상태뿐만 아니라 미래 성장 가능성과 리스크를 종합적으로 평가해야 합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}을 수행하는 방법을 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "기업 분석 전략 전문가", 
+        "복잡한 기업 분석 프로젝트를 체계적으로 분해하고 종합적으로 접근하는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 {topic}을 처음 수행하는 비즈니스 전공 대학생입니다. "
+        f"너무 많은 분석 영역과 방법론이 있어서 어디서부터 시작해야 할지, 어떻게 체계적으로 접근해야 할지 혼란스럽습니다. "
+        f"각 영역을 어떻게 분석하고, 어떻게 이를 통합하여 종합적인 결론을 도출해야 하는지 구체적인 가이드가 필요합니다. "
+        f"실제 프로젝트에 적용할 수 있는 체계적인 접근 방법과 단계별 프로세스를 알고 싶습니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "기업 가치" in topic:
+        builder.add_instructions([
+            "기업 가치 평가 프로젝트를 체계적으로 분해하는 방법과 주요 구성 요소를 설명해주세요",
+            "재무적 가치, 전략적 가치, 시장 가치 등 다양한 관점의 가치 평가 방법을 포함해주세요",
+            "DCF, 상대가치평가, 자산가치평가 등 주요 가치평가 방법론의 적용 단계와 핵심 요소를 설명해주세요",
+            "정량적 분석과 정성적 분석을 균형 있게 통합하는 방법을 제시해주세요",
+            "기업 가치 평가의 전체 프로세스를 단계별로 구조화하고, 각 단계별 주요 활동과 산출물을 정의해주세요"
+        ])
+    elif "비즈니스 모델" in topic:
+        builder.add_instructions([
+            "비즈니스 모델 분석 프로젝트를 체계적으로 분해하는 방법과 주요 구성 요소를 설명해주세요",
+            "비즈니스 모델 캔버스, 가치 사슬 분석, 수익 모델 분석 등 핵심 프레임워크의 적용 방법을 설명해주세요",
+            "비즈니스 모델의 지속가능성, 확장성, 수익성, 경쟁력을 평가하는 방법을 포함해주세요",
+            "산업 특성과 비즈니스 모델 유형에 따른 분석 접근법의 차이를 설명해주세요",
+            "비즈니스 모델 분석의 전체 프로세스를 단계별로 구조화하고, 각 단계별 핵심 질문과 분석 도구를 제시해주세요"
+        ])
+    elif "경쟁 우위" in topic:
+        builder.add_instructions([
+            "기업 경쟁 우위 분석 프로젝트를 체계적으로 분해하는 방법과 주요 구성 요소를 설명해주세요",
+            "Porter의 5가지 경쟁요인, VRIO 분석, 핵심 역량 분석 등 주요 프레임워크의 적용 방법을 설명해주세요",
+            "경쟁사 분석, 시장 포지셔닝 분석, 차별화 요소 분석 등 세부 분석 영역의 접근법을 포함해주세요",
+            "정량적 지표와 정성적 평가를 통합하여 경쟁 우위를 종합적으로 평가하는 방법을 제시해주세요",
+            "경쟁 우위 분석의 전체 프로세스를 단계별로 구조화하고, 실제 사례를 통한 적용 예시를 제공해주세요"
+        ])
+    elif "성장 전략" in topic:
+        builder.add_instructions([
+            "기업 성장 전략 수립 및 평가 프로젝트를 체계적으로 분해하는 방법과 주요 구성 요소를 설명해주세요",
+            "Ansoff 성장 매트릭스, BCG 매트릭스, 블루오션 전략 등 주요 성장 전략 프레임워크의 적용 방법을 설명해주세요",
+            "시장 기회 분석, 내부 역량 평가, 리스크 분석 등 세부 분석 영역의 접근법을 포함해주세요",
+            "단기적 성과와 장기적 성장 잠재력을 균형 있게 고려하는 전략 평가 방법을 제시해주세요",
+            "성장 전략 수립 및 평가의 전체 프로세스를 단계별로 구조화하고, 각 단계별 핵심 활동과 의사결정 포인트를 명확히 해주세요"
+        ])
+    elif "투자 타당성" in topic:
+        builder.add_instructions([
+            "기업 투자 타당성 분석 프로젝트를 체계적으로 분해하는 방법과 주요 구성 요소를 설명해주세요",
+            "재무적 타당성(NPV, IRR, 회수 기간 등), 전략적 타당성, 운영적 타당성 등 다양한 측면의 분석 방법을 포함해주세요",
+            "산업 분석, 시장 잠재력 평가, 경쟁 환경 분석 등 투자 배경 분석 접근법을 설명해주세요",
+            "리스크 요인 식별 및 평가, 시나리오 분석, 민감도 분석 등 불확실성 관리 방법을 제시해주세요",
+            "투자 타당성 분석의 전체 프로세스를 단계별로 구조화하고, 투자 의사결정을 위한 종합적 평가 프레임워크를 제공해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}을 체계적으로 분해하는 방법과 주요 구성 요소를 설명해주세요",
+            "분석의 주요 영역과 각 영역에 적합한 분석 프레임워크 및 도구를 제시해주세요",
+            "정량적 분석과 정성적 분석을 균형 있게 통합하는 방법을 설명해주세요",
+            "분석 결과를 종합하여 통합적인 결론을 도출하는 방법을 제시해주세요",
+            "전체 분석 프로세스를 단계별로 구조화하고, 각 단계별 주요 활동과 산출물을 정의해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"다음 섹션들을 포함해주세요: "
+        f"1) 프로젝트 개요: 분석의 목적, 범위, 핵심 질문 "
+        f"2) 분석 프레임워크: 주요 분석 영역과 적용할 방법론 "
+        f"3) 단계별 접근법: 프로젝트 수행을 위한 체계적인 단계 "
+        f"4) 핵심 분석 도구: 각 영역별 분석에 활용할 주요 도구와 템플릿 "
+        f"5) 종합 분석 방법: 개별 분석 결과를 통합하는 접근법 "
+        f"표, 다이어그램, 체크리스트 등 시각적 요소를 활용하여 명확성을 높여주세요. "
+        f"실제 기업 분석 프로젝트에 바로 적용할 수 있는 실용적인 가이드를 제공해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Subtask_definition")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="실제 사례: 기업 분석 프로젝트 접근법",
+        topic_options=COMPANY_ANALYSIS_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
