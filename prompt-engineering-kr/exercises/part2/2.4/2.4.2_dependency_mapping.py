@@ -1,7 +1,7 @@
 """
-Dependency_mapping 실습 모듈
+단계별 질문 체인 구성 실습 모듈
 
-Part 2 - 섹션 2.4.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 2 - 섹션 2.4.2 실습 코드: 복잡한 과제를 탐색하기 위한 체계적인 질문 체인을 구성하는 방법을 실습합니다.
 """
 
 import os
@@ -9,42 +9,139 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_dependency_mapping_prompt, get_enhanced_dependency_mapping_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+QUESTION_CHAIN_TOPICS = {
+    "1": {"name": "연구 질문", "topic": "연구 질문 체인 개발", "output_format": "질문 프레임워크"},
+    "2": {"name": "문제 해결", "topic": "문제 해결을 위한 질문 체인 구성", "output_format": "질문 매트릭스"},
+    "3": {"name": "비즈니스 전략", "topic": "비즈니스 전략 개발 질문 체인", "output_format": "전략 질문 가이드"},
+    "4": {"name": "의사 결정", "topic": "복잡한 의사 결정을 위한 질문 시퀀스", "output_format": "의사결정 체크리스트"},
+    "5": {"name": "제품 개발", "topic": "제품 개발 프로세스의 단계별 질문", "output_format": "질문 로드맵"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["단순한 질문 목록 요청"],
+    "enhanced": [
+        "체계적 구조: 위계적/순차적 질문 체인 구성",
+        "목적 중심: 각 질문의 목적과 기대 결과 명시",
+        "관계 연결: 질문 간 연결성과 흐름 설계"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "체계적으로 구성된 질문 체인은 복잡한 과제를 점진적으로 탐색하는 효과적인 도구입니다",
+    "다양한 유형의 질문(위계적, 순차적, 발산-수렴형)을 목적에 맞게 조합하는 것이 중요합니다",
+    "각 질문의 목적, 기대 결과, 다음 질문과의 연결성을 명확히 설계해야 합니다",
+    "질문 체인은 초기 설계 후 테스트와 수정을 통해 지속적으로 개선되어야 합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}을 위한 질문 목록을 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "질문 설계 전문가", 
+        "복잡한 주제를 체계적으로 탐색하기 위한 효과적인 질문 체인을 설계하는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 {topic}을 진행하려는 대학생입니다. "
+        f"단순히 개별 질문이 아니라, 서로 연결되고 체계적으로 구성된 질문 체인을 개발하고 싶습니다. "
+        f"각 질문이 다음 질문으로 자연스럽게 이어지며, 복잡한 주제를 점진적으로 탐색할 수 있는 방법이 필요합니다. "
+        f"실제 프로젝트에 바로 적용할 수 있는 구체적이고 실용적인 질문 체인을 설계해주세요."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "연구 질문" in topic:
+        builder.add_instructions([
+            "학술 연구를 위한 체계적인 질문 체인 구조와 설계 원칙을 설명해주세요",
+            "광범위한 연구 주제에서 구체적인 연구 질문으로 좁혀가는 위계적 질문 체인을 개발해주세요",
+            "각 질문의 목적, 적절한 정보원, 예상 결과, 다음 질문과의 연결성을 명확히 해주세요",
+            "이론적 탐색, 방법론 개발, 데이터 분석, 결과 해석을 위한 순차적 질문 체인을 포함해주세요",
+            "질문 체인 적용 과정에서 발생할 수 있는 어려움과 대응 전략도 제시해주세요"
+        ])
+    elif "문제 해결" in topic:
+        builder.add_instructions([
+            "복잡한 문제 해결을 위한 체계적인 질문 체인 구조와 설계 원칙을 설명해주세요",
+            "문제 정의, 원인 분석, 해결책 개발, 평가 및 선택을 위한 단계별 질문 체인을 개발해주세요",
+            "각 질문의 목적, 질문 유형(개방형/폐쇄형, 사실적/해석적/평가적), 다음 단계와의 연결성을 명확히 해주세요",
+            "발산적 사고(다양한 가능성 탐색)와 수렴적 사고(초점 좁히기)를 위한 질문 시퀀스를 포함해주세요",
+            "질문 체인 활용을 위한 구체적인 워크시트나 템플릿을 제공해주세요"
+        ])
+    elif "비즈니스 전략" in topic:
+        builder.add_instructions([
+            "비즈니스 전략 개발을 위한 체계적인 질문 체인 구조와 설계 원칙을 설명해주세요",
+            "시장 분석, 고객 니즈, 경쟁 환경, 내부 역량, 전략적 옵션, 실행 계획을 탐색하는 질문 체인을 개발해주세요",
+            "각 질문의 목적, 필요한 데이터, 분석 방법, 의사결정 포인트와의 연결성을 명확히 해주세요",
+            "현재 상태 분석과 미래 전략 개발을 연결하는 질문 흐름을 설계해주세요",
+            "다양한 비즈니스 상황(성장, 안정화, 전환, 회복 등)에 맞춘 질문 변형도 제시해주세요"
+        ])
+    elif "의사 결정" in topic:
+        builder.add_instructions([
+            "복잡한 의사 결정을 지원하는 체계적인 질문 체인 구조와 설계 원칙을 설명해주세요",
+            "의사 결정 문제 정의, 대안 개발, 기준 설정, 평가, 최종 선택을 위한 단계별 질문 체인을 개발해주세요",
+            "각 질문의 목적, 의사결정 프로세스에서의 역할, 다음 단계와의 연결성을 명확히 해주세요",
+            "편향을 최소화하고 객관적 의사결정을 유도하는 질문 기법을 포함해주세요",
+            "불확실성 상황에서의 의사결정을 위한 특화된 질문 시퀀스도 제시해주세요"
+        ])
+    elif "제품 개발" in topic:
+        builder.add_instructions([
+            "제품 개발 프로세스를 지원하는 체계적인 질문 체인 구조와 설계 원칙을 설명해주세요",
+            "아이디어 생성, 고객 니즈 분석, 개념 개발, 프로토타입 설계, 테스트, 출시 전략을 위한 단계별 질문 체인을 개발해주세요",
+            "각 질문의 목적, 제품 개발 단계에서의 역할, 다음 단계로의 전환 기준을 명확히 해주세요",
+            "사용자 중심 설계와 비즈니스 요구사항의 균형을 위한 질문 패턴을 포함해주세요",
+            "제품 개발 각 단계에서 의사결정을 지원하는 체크포인트 질문들도 제시해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}을 위한 체계적인 질문 체인 구조와 설계 원칙을 설명해주세요",
+            "주요 탐색 영역과 단계별 접근을 위한 질문 체인을 개발해주세요",
+            "각 질문의 목적, 예상 결과, 다음 질문과의 연결성을 명확히 해주세요",
+            "다양한 질문 유형(개방형/폐쇄형, 위계적/순차적, 발산적/수렴적)을 적절히 활용해주세요",
+            "질문 체인 적용을 위한 구체적인 워크시트나 템플릿을 제공해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"다음 섹션들을 포함해주세요: "
+        f"1) 질문 체인 설계 원칙: 효과적인 질문 체인 구성을 위한 핵심 원칙 "
+        f"2) 질문 체인 구조: 질문들의 전체적인 구조와 흐름 "
+        f"3) 단계별 질문 세트: 각 단계별 핵심 질문과 목적 "
+        f"4) 질문 간 연결성: 각 질문이 어떻게 다음 질문으로 이어지는지 설명 "
+        f"5) 적용 가이드: 실제 상황에서 질문 체인을 적용하는 방법 "
+        f"가능한 경우 표, 다이어그램, 흐름도 등의 시각적 요소를 활용하여 질문 체인의 구조와 흐름을 명확히 보여주세요. "
+        f"각 질문에 대해 목적, 예상 결과, 다음 단계 등의 정보를 포함한 구체적인 질문 매트릭스나 템플릿을 제공해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Dependency_mapping")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="단계별 질문 체인 구성 실습",
+        topic_options=QUESTION_CHAIN_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
