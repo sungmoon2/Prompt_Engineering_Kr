@@ -1,7 +1,7 @@
 """
-Concept_connections 실습 모듈
+기초 지식 구축을 위한 프롬프트 템플릿 실습 모듈
 
-Part 1 - 섹션 1.4.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 1 - 섹션 1.4.3 실습 코드: 다양한 분야의 기초 지식을 효과적으로 구축하기 위한 프롬프트 템플릿을 학습합니다.
 """
 
 import os
@@ -9,42 +9,134 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_concept_connections_prompt, get_enhanced_concept_connections_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+KNOWLEDGE_TEMPLATE_TOPICS = {
+    "1": {"name": "학술 개념", "topic": "학술 개념의 기초 지식 구축 템플릿", "output_format": "템플릿 모음"},
+    "2": {"name": "기술 분야", "topic": "기술 분야의 기초 지식 구축 템플릿", "output_format": "템플릿 가이드"},
+    "3": {"name": "비즈니스 영역", "topic": "비즈니스 영역의 기초 지식 구축 템플릿", "output_format": "템플릿 세트"},
+    "4": {"name": "예술/인문학", "topic": "예술 및 인문학 분야의 기초 지식 구축 템플릿", "output_format": "템플릿 프레임워크"},
+    "5": {"name": "범용 템플릿", "topic": "다양한 분야에 적용 가능한 기초 지식 구축 템플릿", "output_format": "템플릿 라이브러리"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "목적 명시: 재사용 가능한 템플릿 개발 목적 설정",
+        "구체적 요청: 다양한 상황과 분야를 위한 체계적 템플릿 요청",
+        "실용적 구조: 즉시 활용 가능한 형식과 예시 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "재사용 가능한 프롬프트 템플릿은 효율적인 지식 구축의 기반이 됩니다",
+    "분야별 특성을 고려한 맞춤형 템플릿이 더 효과적인 결과를 가져옵니다",
+    "템플릿에는 주제 배경, 학습 목적, 구체적인 요청사항이 포함되어야 합니다",
+    "변수와 확장 가능한 요소를 포함하면 다양한 주제에 쉽게 적용할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "프롬프트 설계 전문가", 
+        "효과적인 학습과 지식 구축을 위한 템플릿을 개발하는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 대학생으로 {topic}을 개발하고 싶습니다. "
+        f"다양한 주제에 대한 기초 지식을 체계적으로 구축하는 데 도움이 될 재사용 가능한 프롬프트 템플릿이 필요합니다. "
+        f"이 템플릿은 새로운 분야를 접할 때마다 약간의 수정만으로 활용할 수 있어야 합니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "학술 개념" in topic:
+        builder.add_instructions([
+            "다양한 학문 분야(인문학, 사회과학, 자연과학, 공학 등)의 학술 개념을 이해하기 위한 재사용 가능한 프롬프트 템플릿을 제공해주세요",
+            "각 템플릿에는 [개념], [분야], [난이도] 등의 변수를 포함하여 다양한 주제에 쉽게 적용할 수 있게 해주세요",
+            "개념의 정의, 역사적 맥락, 주요 이론, 응용 사례 등을 체계적으로 요청하는 구조로 설계해주세요",
+            "초보자부터 중급 학습자까지 단계별로 활용할 수 있는 템플릿 세트를 제공해주세요",
+            "실제 템플릿 사용 예시를 특정 학술 개념(예: 상대성 이론, 행동주의, 구조주의 등)에 적용하여 보여주세요"
+        ])
+    elif "기술 분야" in topic:
+        builder.add_instructions([
+            "다양한 기술 분야(프로그래밍 언어, 소프트웨어 아키텍처, 네트워크, AI 등)의 기초 지식을 구축하기 위한 템플릿을 제공해주세요",
+            "각 템플릿에는 [기술명], [용도], [난이도] 등의 변수를 포함하여 다양한 기술에 적용할 수 있게 해주세요",
+            "기술의 기본 원리, 핵심 개념, 실제 적용, 장단점 등을 체계적으로 요청하는 구조로 설계해주세요",
+            "이론적 이해와 실습을 위한 예제 요청을 균형 있게 포함하는 템플릿으로 만들어주세요",
+            "실제 템플릿 사용 예시를 특정 기술(예: Python, 마이크로서비스, 머신러닝 등)에 적용하여 보여주세요"
+        ])
+    elif "비즈니스 영역" in topic:
+        builder.add_instructions([
+            "다양한 비즈니스 영역(마케팅, 재무, 운영, 전략, HR 등)의 기초 지식을 구축하기 위한 템플릿을 제공해주세요",
+            "각 템플릿에는 [영역], [산업], [관점] 등의 변수를 포함하여 다양한 비즈니스 상황에 적용할 수 있게 해주세요",
+            "핵심 개념, 프레임워크, 사례 연구, 실제 적용 방법 등을 체계적으로 요청하는 구조로 설계해주세요",
+            "이론적 이해와 실무적 적용을 균형 있게 다루는 템플릿으로 만들어주세요",
+            "실제 템플릿 사용 예시를 특정 비즈니스 영역(예: 디지털 마케팅, 재무 분석, 프로젝트 관리 등)에 적용하여 보여주세요"
+        ])
+    elif "예술/인문학" in topic:
+        builder.add_instructions([
+            "다양한 예술 및 인문학 분야(문학, 철학, 미술, 음악, 역사 등)의 기초 지식을 구축하기 위한 템플릿을 제공해주세요",
+            "각 템플릿에는 [장르/분야], [시대], [관점] 등의 변수를 포함하여 다양한 주제에 적용할 수 있게 해주세요",
+            "역사적 맥락, 주요 작품/사상, 영향력, 해석 방법 등을 체계적으로 요청하는 구조로 설계해주세요",
+            "사실적 정보와 비평적 이해를 균형 있게 다루는 템플릿으로 만들어주세요",
+            "실제 템플릿 사용 예시를 특정 예술/인문학 주제(예: 르네상스 미술, 실존주의 철학, 포스트모더니즘 문학 등)에 적용하여 보여주세요"
+        ])
+    elif "범용 템플릿" in topic:
+        builder.add_instructions([
+            "다양한 분야와 주제에 두루 적용할 수 있는 기초 지식 구축 템플릿을 제공해주세요",
+            "각 템플릿에는 [주제], [분야], [목적], [난이도] 등의 변수를 포함하여 최대한 범용적으로 활용할 수 있게 해주세요",
+            "기본 개념, 역사/배경, 주요 요소, 응용/활용, 관련 분야 등을 체계적으로 요청하는 구조로 설계해주세요",
+            "다양한 학습 목적(개요 파악, 심층 이해, 실용적 적용 등)에 맞춘 템플릿 변형을 포함해주세요",
+            "실제 템플릿 사용 예시를 완전히 다른 여러 분야(예: 천문학, 요리, 심리학, 게임 디자인 등)에 적용하여 보여주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}을 위한 다양한 분야에 적용 가능한 재사용 가능한 프롬프트 템플릿을 제공해주세요",
+            "각 템플릿에는 적절한 변수를 포함하여 다양한 주제와 상황에 쉽게 적용할 수 있게 해주세요",
+            "기초 지식 구축에 필요한 핵심 요소들을 체계적으로 포함하는 구조로 설계해주세요",
+            "다양한 목적과 수준에 맞게 활용할 수 있는 템플릿 변형을 제공해주세요",
+            "실제 사용 예시를 통해 템플릿의 적용 방법을 구체적으로 보여주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 템플릿 등을 명확히 구분해주세요. "
+        f"각 템플릿을 코드 블록으로 표시하여 쉽게 복사하여 사용할 수 있게 해주세요. "
+        f"템플릿의 목적과 적용 방법에 대한 설명을 각 템플릿 앞에 포함해주세요. "
+        f"변수는 [대괄호]로 표시하고, 선택적 요소는 {중괄호}로 표시해주세요. "
+        f"각 템플릿의 실제 적용 예시도 함께 제공하여 활용 방법을 명확히 보여주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Concept_connections")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="기초 지식 구축을 위한 프롬프트 템플릿",
+        topic_options=KNOWLEDGE_TEMPLATE_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
