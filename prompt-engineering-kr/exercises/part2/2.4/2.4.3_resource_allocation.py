@@ -1,7 +1,7 @@
 """
-Resource_allocation 실습 모듈
+분해-수집-통합 워크시트 작성 실습 모듈
 
-Part 2 - 섹션 2.4.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 2 - 섹션 2.4.3 실습 코드: 복잡한 과제를 분해하고, 정보를 수집하며, 통합적 이해를 구축하는 워크시트 작성법을 실습합니다.
 """
 
 import os
@@ -9,42 +9,139 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_resource_allocation_prompt, get_enhanced_resource_allocation_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+WORKSHEET_TOPICS = {
+    "1": {"name": "연구 프로젝트", "topic": "학술 연구 워크시트 개발", "output_format": "연구 워크시트"},
+    "2": {"name": "전략 계획", "topic": "전략 계획 워크시트 템플릿", "output_format": "전략 워크시트"},
+    "3": {"name": "제품 개발", "topic": "제품 개발 워크시트 설계", "output_format": "개발 워크시트"},
+    "4": {"name": "복잡한 문제", "topic": "복잡한 문제 분석 워크시트", "output_format": "문제 분석 템플릿"},
+    "5": {"name": "프로젝트 관리", "topic": "프로젝트 관리 통합 워크시트", "output_format": "프로젝트 워크시트"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["간단한 워크시트 요청"],
+    "enhanced": [
+        "구조화된 워크시트: 분해-수집-통합의 체계적 구조",
+        "실용적 템플릿: 즉시 활용 가능한 형식과 지침",
+        "통합적 접근: 정보 요소 간 관계와 패턴 분석 포함"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "분해-수집-통합 워크시트는 복잡한 과제를 체계적으로 접근하고 문서화하는 효과적인 도구입니다",
+    "잘 설계된 워크시트는 정보의 구조화, 격차 식별, 패턴 발견을 촉진합니다",
+    "수집된 정보 간의 관계와 상호작용을 분석하는 것이 통합적 이해 구축에 중요합니다",
+    "워크시트는 일회성 도구가 아닌 지속적인 개선과 확장이 가능한 유기적 문서로 활용해야 합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}을 위한 워크시트를 만들어주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "워크시트 설계 전문가", 
+        "복잡한 과제를 체계적으로 분해하고, 정보를 효과적으로 수집하며, 통합적 이해를 구축하는 워크시트를 설계하는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 {topic}을 진행하려는 대학생입니다. "
+        f"이 과제가 복잡하고 여러 측면을 고려해야 해서, 체계적으로 접근하기 위한 워크시트가 필요합니다. "
+        f"분해-수집-통합 접근법에 따라 과제를 구조화하고, 필요한 정보를 체계적으로 수집하며, "
+        f"수집된 정보를 바탕으로 통합적 이해를 구축할 수 있는 워크시트를 만들고 싶습니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "학술 연구" in topic:
+        builder.add_instructions([
+            "학술 연구 프로세스를 분해-수집-통합 단계로 구조화한 워크시트 템플릿을 개발해주세요",
+            "연구 주제 분해: 연구 질문, 하위 질문, 개념 정의, 변수 식별 등의 섹션을 포함해주세요",
+            "정보 수집: 문헌 검토, 데이터 수집, 방법론 설계 등을 위한 구조화된 섹션을 설계해주세요",
+            "결과 통합: 분석 결과, 패턴 식별, 이론과의 연결, 시사점 도출 등을 위한 섹션을 포함해주세요",
+            "워크시트 사용 지침, 섹션별 핵심 질문, 예시 답변 등 실용적인 가이드도 함께 제공해주세요"
+        ])
+    elif "전략 계획" in topic:
+        builder.add_instructions([
+            "전략 계획 과정을 분해-수집-통합 접근법으로 구조화한 워크시트 템플릿을 개발해주세요",
+            "전략적 문제 분해: 비전/목표 정의, 핵심 이슈 식별, 우선순위 설정 등의 섹션을 포함해주세요",
+            "정보 수집: 내부/외부 환경 분석, 이해관계자 요구사항, 자원 및 역량 평가 등을 위한 섹션을 설계해주세요",
+            "전략 통합: 전략적 옵션 개발, 평가 기준, 실행 계획, 모니터링 방법 등을 위한 섹션을 포함해주세요",
+            "워크시트 사용 방법, 단계별 핵심 질문, 의사결정 포인트 등에 대한 실용적인 가이드도 함께 제공해주세요"
+        ])
+    elif "제품 개발" in topic:
+        builder.add_instructions([
+            "제품 개발 프로세스를 분해-수집-통합 접근법으로 구조화한 워크시트 템플릿을 개발해주세요",
+            "제품 개념 분해: 핵심 기능, 사용자 요구사항, 기술적 요소, 시장 포지셔닝 등의 섹션을 포함해주세요",
+            "정보 수집: 사용자 조사, 경쟁 제품 분석, 기술 평가, 비용 추정 등을 위한 섹션을 설계해주세요",
+            "제품 통합: 디자인 사양, 개발 로드맵, 테스트 계획, 출시 전략 등을 위한 섹션을 포함해주세요",
+            "워크시트 활용 방법, 단계별 핵심 질문, 의사결정 체크포인트 등에 대한 실용적인 가이드도 함께 제공해주세요"
+        ])
+    elif "복잡한 문제" in topic:
+        builder.add_instructions([
+            "복잡한 문제 분석을 위한 분해-수집-통합 접근법 워크시트 템플릿을 개발해주세요",
+            "문제 분해: 문제 정의, 구성 요소, 영향 범위, 이해관계자 등을 식별하는 섹션을 포함해주세요",
+            "정보 수집: 원인 분석, 데이터 수집, 이전 해결 시도, 제약 조건 등을 위한 섹션을 설계해주세요",
+            "해결책 통합: 대안 생성, 평가 기준, 최적 해결책 선택, 실행 계획 등을 위한 섹션을 포함해주세요",
+            "워크시트 사용 지침, 단계별 핵심 질문, 사고 도구 등에 대한 실용적인 가이드도 함께 제공해주세요"
+        ])
+    elif "프로젝트 관리" in topic:
+        builder.add_instructions([
+            "프로젝트 관리를 위한 분해-수집-통합 접근법 워크시트 템플릿을 개발해주세요",
+            "프로젝트 분해: 목표 정의, 범위 설정, 작업 분류, 단계 구분 등을 위한 섹션을 포함해주세요",
+            "정보 수집: 자원 요구사항, 일정 계획, 리스크 평가, 이해관계자 관리 등을 위한 섹션을 설계해주세요",
+            "프로젝트 통합: 진행 상황 추적, 이슈 관리, 변경 통제, 성과 평가 등을 위한 섹션을 포함해주세요",
+            "워크시트 활용 방법, 프로젝트 단계별 핵심 활동, 의사결정 포인트 등에 대한 실용적인 가이드도 함께 제공해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}을 위한 분해-수집-통합 접근법 워크시트 템플릿을 개발해주세요",
+            "과제 분해: 핵심 요소, 구성 요소, 우선순위 등을 식별하는 섹션을 포함해주세요",
+            "정보 수집: 필요한 데이터, 관련 자료, 분석 방법 등을 위한 섹션을 설계해주세요",
+            "결과 통합: 발견 사항 종합, 패턴 식별, 결론 도출, 실행 계획 등을 위한 섹션을 포함해주세요",
+            "워크시트 사용 방법, 단계별 핵심 질문, 사례 예시 등에 대한 실용적인 가이드도 함께 제공해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 표, 목록 등을 명확히 구분해주세요. "
+        f"워크시트는 다음과 같은 구조로 작성해주세요: "
+        f"1) 워크시트 개요: 목적, 사용 방법, 기대 결과 "
+        f"2) 분해 섹션: 과제 분해를 위한 영역, 질문, 표 등 "
+        f"3) 수집 섹션: 정보 수집과 정리를 위한 구조화된 템플릿 "
+        f"4) 통합 섹션: 수집된 정보의 패턴, 관계, 통찰을 도출하기 위한 구조 "
+        f"5) 실행 섹션: 통합된 이해를 바탕으로 한 결론과 행동 계획 "
+        f"각 섹션에는 작성 지침, 예시 답변, 참고 사항 등을 포함하여 실제로 활용하기 쉽게 만들어주세요. "
+        f"워크시트는 인쇄하거나 디지털 문서로 사용할 수 있도록 명확하고 실용적인 형태로 제공해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Resource_allocation")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="분해-수집-통합 워크시트 작성",
+        topic_options=WORKSHEET_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
