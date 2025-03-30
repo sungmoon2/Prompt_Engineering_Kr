@@ -1,7 +1,8 @@
 """
-Research_questions 실습 모듈
+효과적인 연구 질문 개발 실습 모듈
 
-Part 4 - 섹션 4.1.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 4 - 섹션 4.1.2 실습 코드: 연구 주제에서 명확하고 연구 가능한 
+연구 질문을 체계적으로 개발하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +10,138 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_research_questions_prompt, get_enhanced_research_questions_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+RESEARCH_QUESTION_TOPICS = {
+    "1": {"name": "연구 질문 유형", "topic": "다양한 연구 질문 유형과 적용 상황", "output_format": "유형별 가이드"},
+    "2": {"name": "질문 개발 과정", "topic": "연구 주제에서 효과적인 연구 질문으로 발전시키는 단계적 프로세스", "output_format": "프로세스 가이드"},
+    "3": {"name": "질문 평가 기준", "topic": "효과적인 연구 질문의 특성과 평가 프레임워크", "output_format": "평가 도구"},
+    "4": {"name": "하위 질문 개발", "topic": "체계적인 하위 연구 질문 개발 방법", "output_format": "질문 프레임워크"},
+    "5": {"name": "분야별 접근법", "topic": "학문 분야별 효과적인 연구 질문 개발 전략", "output_format": "분야별 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "역할 설정: 연구 방법론 전문가",
+        "맥락 제공: 학생의 연구 단계와 필요성 명시",
+        "구체적 요청: 체계적인 접근법과 평가 기준 요청",
+        "형식 지정: 단계별 가이드와 실제 사례 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "효과적인 연구 질문은 연구의 방향을 설정하고 전체 연구 과정을 안내하는 핵심 요소입니다",
+    "다양한 유형의 연구 질문(기술적, 관계적, 비교, 인과적 등)은 각기 다른 연구 목적과 맥락에 적합합니다",
+    "연구 질문 개발은 단계적이고 반복적인 과정으로, 초기 질문에서 점진적으로 정제해 나가는 접근이 중요합니다",
+    "FINER(실행 가능성, 흥미로움, 독창성, 윤리성, 관련성) 기준은 연구 질문 평가의 효과적인 프레임워크입니다",
+    "명확하고 구체적인 용어를 사용하고 핵심 개념을 정의하는 것이 좋은 연구 질문의 핵심입니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "연구 방법론 전문가", 
+        "효과적인 연구 질문 개발과 평가를 지도하는 전문가로, 다양한 학문 분야의 학생들이 명확하고 의미 있는 연구 질문을 개발할 수 있도록 돕습니다."
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 대학생으로 {topic}에 관심이 있습니다. "
+        f"현재 학술 연구를 위한 연구 질문을 개발하는 단계에 있으며, "
+        f"효과적인 연구 질문을 체계적으로 개발하고 평가하는 방법에 대한 도움이 필요합니다. "
+        f"저의 학술적 배경은 [관련 학문 분야]이며, 약 [페이지 수/단어 수] 분량의 "
+        f"연구 논문/보고서를 준비하고 있습니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "연구 질문 유형" in topic:
+        builder.add_instructions([
+            "다양한 연구 질문 유형(기술적, 관계적, 비교, 인과적, 탐색적, 규범적 등)의 특성과 목적을 설명해주세요",
+            "각 유형의 강점, 한계, 적합한 연구 상황을 비교해주세요",
+            "다양한 학문 분야(인문학, 사회과학, 자연과학 등)에 따른 질문 유형 활용의 차이점을 설명해주세요",
+            "각 질문 유형의 효과적인 구성 방법과 일반적인 실수를 상세히 안내해주세요",
+            "각 유형별로 다양한 학문 분야의 실제 연구 질문 예시를 제공해주세요"
+        ])
+    elif "질문 개발 과정" in topic:
+        builder.add_instructions([
+            "연구 주제에서 효과적인 연구 질문으로 발전시키는 단계적 프로세스를 설명해주세요",
+            "주제 진술문 작성, 초기 질문 브레인스토밍, 질문 평가 및 정제 등 각 단계별 구체적인 방법과 전략을 안내해주세요",
+            "모호하거나 광범위한 초기 질문을 명확하고 초점화된 연구 질문으로 변환하는 기법을 설명해주세요",
+            "각 단계에서 흔히 발생하는 장애물과 이를 극복하는 방법을 제안해주세요",
+            "다양한 학문 분야의 실제 사례를 통해 연구 질문 개발 과정을 보여주는 예시를 포함해주세요"
+        ])
+    elif "질문 평가 기준" in topic:
+        builder.add_instructions([
+            "효과적인 연구 질문의 핵심 특성과 평가 기준을 설명해주세요",
+            "FINER(실행 가능성, 흥미로움, 독창성, 윤리성, 관련성) 등의 평가 프레임워크와 적용 방법을 상세히 안내해주세요",
+            "연구 질문의 명확성, 초점성, 연구 가능성, 유기적 연결성 등 기술적 특성을 평가하는 방법을 설명해주세요",
+            "약한 연구 질문과 강한 연구 질문의 구체적인 비교 예시를 다양한 학문 분야에서 제공해주세요",
+            "연구 질문 개선을 위한 체크리스트와 실용적인 평가 도구를 포함해주세요"
+        ])
+    elif "하위 질문 개발" in topic:
+        builder.add_instructions([
+            "주요 연구 질문을 지원하는 효과적인 하위 질문 개발 방법을 설명해주세요",
+            "분해 접근법, 다차원적 접근법, 순차적 접근법 등 다양한 하위 질문 개발 전략과 적용 방법을 상세히 안내해주세요",
+            "연구 질문 매트릭스와 통합적 질문 프레임워크 구축 방법을 설명해주세요",
+            "하위 질문 간의 논리적 연결성과 일관성을 유지하는 방법을 제안해주세요",
+            "다양한 학문 분야의 연구 질문 프레임워크 실제 사례를 포함해주세요"
+        ])
+    elif "분야별 접근법" in topic:
+        builder.add_instructions([
+            "다양한 학문 분야(인문학, 사회과학, 자연과학, 학제간 연구 등)별 효과적인 연구 질문 개발 전략을 비교 설명해주세요",
+            "각 학문 분야의 특성과 연구 패러다임에 맞는 연구 질문 유형과 구조를 설명해주세요",
+            "분야별 연구 질문 개발 시 고려해야 할 특수한, 요소와 중점을 두어야 할 측면을 안내해주세요",
+            "각 분야의 우수한 연구 질문 사례와 일반적인 문제점을 분석해주세요",
+            "학제간 연구를 위한 연구 질문 개발의 특별한 고려사항과 전략도 포함해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}에 대한 체계적이고 실용적인 접근법을 설명해주세요",
+            "이론적 배경과 주요 개념을 명확히 설명해주세요",
+            "단계별 프로세스와 구체적인 적용 방법을 제시해주세요",
+            "학생이 직접 적용할 수 있는 실용적인 전략과 도구를 포함해주세요",
+            "다양한 학문적 맥락에 맞게 조정할 수 있는 유연한 접근법을 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"실제 사용 가능한 템플릿, 워크시트, 체크리스트 등의 실용적 도구를 포함해주세요. "
+        f"약한 질문과 강한 질문의 비교 예시, 발전 과정 사례 등 구체적인 예시를 다양하게 제공해주세요. "
+        f"각 섹션에서 학문 분야별 특수성과 적용 예시를 포함해주시고, "
+        f"모든 내용은 대학생이 직접 적용할 수 있도록 실용적이고 구체적으로 작성해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Research_questions")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="효과적인 연구 질문 개발",
+        topic_options=RESEARCH_QUESTION_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
