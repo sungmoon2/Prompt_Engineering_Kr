@@ -1,7 +1,8 @@
 """
-Literature_mapping 실습 모듈
+초기 문헌 검토 및 연구 격차 식별 실습 모듈
 
-Part 4 - 섹션 4.1.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 4 - 섹션 4.1.3 실습 코드: 체계적인 문헌 검색, 선별, 분석을 통해
+연구 격차를 식별하고 독창적 기여점을 개발하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +10,139 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_literature_mapping_prompt, get_enhanced_literature_mapping_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+LITERATURE_REVIEW_TOPICS = {
+    "1": {"name": "문헌 검색 전략", "topic": "효과적인 문헌 검색 전략과 검색식 개발 방법", "output_format": "검색 가이드"},
+    "2": {"name": "문헌 분석 방법", "topic": "문헌 선별과 체계적 분석 매트릭스 개발 방법", "output_format": "분석 도구"},
+    "3": {"name": "연구 격차 식별", "topic": "문헌 검토를 통한 연구 격차 식별 및 시각화 기법", "output_format": "격차 매핑 가이드"},
+    "4": {"name": "기여점 개발", "topic": "연구 격차에 기반한 독창적 연구 기여점 개발 방법", "output_format": "기여점 프레임워크"},
+    "5": {"name": "문헌 검토 작성", "topic": "초기 문헌 검토 결과를 체계적으로 작성하고 연구 설계에 활용하는 방법", "output_format": "작성 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "역할 설정: 연구 방법론 전문가",
+        "맥락 제공: 학생의 연구 단계와 필요성 명시",
+        "구체적 요청: 체계적인 접근법과 실용적 도구 요청",
+        "형식 지정: 단계별 가이드와 템플릿 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "체계적인 문헌 검색 전략은 관련성 높은 문헌을 효율적으로 발견하는 데 필수적입니다",
+    "문헌 분석 매트릭스는 문헌 내용을 구조화하고 패턴을 식별하는 강력한 도구입니다",
+    "연구 격차 식별은 다양한 유형(개념적, 방법론적, 인구집단, 맥락적 등)의 격차를 체계적으로 매핑하는 과정입니다",
+    "효과적인 연구 기여점은 식별된 연구 격차와 명확히 연결되어야 합니다",
+    "초기 문헌 검토는 연구 질문 정교화, 이론적 프레임워크 구축, 연구 방법론 선택에 직접적인 영향을 미칩니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "연구 방법론 전문가", 
+        "체계적인 문헌 검토와 연구 격차 식별을 지도하는 전문가로, 다양한 학문 분야에서 효과적인 문헌 검색, 분석, 연구 기여점 개발을 돕습니다."
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 대학생으로 {topic}에 관심이 있습니다. "
+        f"현재 학술 연구를 위해 초기 문헌 검토를 수행하고 있으며, "
+        f"관련 문헌을 체계적으로 검색, 분석하고 연구 격차를 식별하여 "
+        f"제 연구의 독창적 기여점을 개발하는 데 도움이 필요합니다. "
+        f"저의 학술적 배경은 [관련 학문 분야]이며, [연구 주제/질문]에 대한 "
+        f"연구를 진행하고 있습니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "문헌 검색 전략" in topic:
+        builder.add_instructions([
+            "효과적인 문헌 검색 전략과 검색식 개발 방법을 체계적으로 설명해주세요",
+            "PICO 프레임워크 등을 활용한 검색 계획 수립 방법을 단계별로 안내해주세요",
+            "불리언 연산자, 구문 검색, 와일드카드 등 고급 검색 기법의 효과적인 활용법을 설명해주세요",
+            "다양한 학문 분야(인문학, 사회과학, 자연과학 등)에 적합한 데이터베이스 선택과 특화된 검색 전략을 제안해주세요",
+            "검색 과정 문서화와 검색식 최적화를 위한 실용적인 템플릿과 예시를 포함해주세요"
+        ])
+    elif "문헌 분석 방법" in topic:
+        builder.add_instructions([
+            "문헌 선별 및 체계적 분석 매트릭스 개발 방법을 상세히 설명해주세요",
+            "명확한 포함/제외 기준 개발과 2단계 선별 과정(제목/초록 검토, 전체 텍스트 검토)을 안내해주세요",
+            "다양한 유형의 문헌 분석 매트릭스(기본형, 주제별, 시간적 발전형 등) 및 그 개발과 활용 방법을 설명해주세요",
+            "문헌의 품질과 신뢰성을 평가하는 비판적 문헌 평가 기준과 방법을 제시해주세요",
+            "문헌 선별 및 분석을 위한 실용적인 워크시트와 템플릿을 포함해주세요"
+        ])
+    elif "연구 격차 식별" in topic:
+        builder.add_instructions([
+            "문헌 검토를 통한 연구 격차 식별 및 시각화 기법을 체계적으로 설명해주세요",
+            "주요 연구 격차 유형(개념적, 방법론적, 인구집단, 맥락적, 시간적 등)과 각 유형의 식별 방법을 상세히 안내해주세요",
+            "격차 매트릭스, 트렌드 분석, 방법론 매핑 등 격차 매핑 기법의 적용 방법을 설명해주세요",
+            "연구 격차를 시각적으로 표현하는 효과적인 다이어그램과 시각화 방법을 제안해주세요",
+            "연구 격차 식별을 위한 체계적인 체크리스트와, 실제 격차 분석 예시를 포함해주세요"
+        ])
+    elif "기여점 개발" in topic:
+        builder.add_instructions([
+            "식별된 연구 격차에 기반한 독창적 연구 기여점 개발 방법을 설명해주세요",
+            "CARS 모델 등을 활용한 연구 기여 구성 방법을 단계별로 안내해주세요",
+            "다양한 기여 유형(이론적 확장, 이론적 정교화, 방법론적 혁신, 맥락적 확장 등)과 그 특성 및 적용 상황을 설명해주세요",
+            "효과적인 연구 기여 선언문 작성법과 구체적인 템플릿을 제시해주세요",
+            "연구 기여점을 시각적으로 표현하는 효과적인 다이어그램과 프레임워크도 포함해주세요"
+        ])
+    elif "문헌 검토 작성" in topic:
+        builder.add_instructions([
+            "초기 문헌 검토 결과를 체계적으로 작성하고 연구 설계에 활용하는 방법을 설명해주세요",
+            "효과적인 문헌 검토 구조와 작성 원칙을 상세히 안내해주세요",
+            "통합적 구성 접근법과 효과적인 인용 및 참조 전략을 설명해주세요",
+            "문헌 검토 결과를 이론적 프레임워크 개발, 연구 방법론 선택, 가설 및 변수 개발에 활용하는 방법을 제시해주세요",
+            "다양한 학문 분야별 효과적인 문헌 검토 작성 사례와 템플릿을 포함해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}에 대한 체계적이고 실용적인 접근법을 설명해주세요",
+            "이론적 배경과 주요 개념을 명확히 설명해주세요",
+            "단계별 프로세스와 구체적인 적용 방법을 제시해주세요",
+            "학생이 직접 적용할 수 있는 실용적인 전략과 도구를 포함해주세요",
+            "다양한 학문적 맥락에 맞게 조정할 수 있는 유연한 접근법을 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"실제 사용 가능한 템플릿, 워크시트, 체크리스트 등의 실용적 도구를 포함해주세요. "
+        f"필요한 경우 표, 다이어그램, 흐름도 등의 시각적 요소를 활용해주세요. "
+        f"다양한 학문 분야별 특성과 적용 예시를 포함해주시고, "
+        f"모든 내용은 대학생이 직접 적용할 수 있도록 실용적이고 구체적으로 작성해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Literature_mapping")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="초기 문헌 검토 및 연구 격차 식별",
+        topic_options=LITERATURE_REVIEW_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
