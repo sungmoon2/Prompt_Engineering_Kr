@@ -128,8 +128,42 @@ def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
         )
         
         builder.add_instructions([
-            "AI 생성 콘텐츠의 주요 검증 영역(사실 정확성, 논리적 일관성, 학술적 적절성, 출처 검증 등)을 설명해주세요",
-            "AI의 '환각'(hallucination) 현상을 이해하고 허위 정보, 가상의 참고문헌, 잘못된 인용을 식별하는 방법을 제시해주세요",
-            "AI 생성 콘텐츠를 검증하기 위한 체계적인 단계별 프로세스와 체크리스트를 개발해주세요",
-            "다양한 학문 분야별로 AI 생성 콘텐츠를 검증하는 특화된 접근법과 고려사항을 설명해주세요",
-            "AI 생성 콘텐츠의 검증을 위한 유용한 도구와 리소스(학술 데이터베이스, 표절 검사 도구 등)를 소개해주세요"
+    "AI 생성 콘텐츠의 주요 검증 영역(사실 정확성, 논리적 일관성, 학술적 적절성, 출처 검증 등)을 설명해주세요",
+    "AI의 '환각'(hallucination) 현상을 이해하고 허위 정보, 가상의 참고문헌, 잘못된 인용을 식별하는 방법을 제시해주세요",
+    "AI 생성 콘텐츠를 검증하기 위한 체계적인 단계별 프로세스와 체크리스트를 개발해주세요",
+    "다양한 학문 분야별로 AI 생성 콘텐츠를 검증하는 특화된 접근법과 고려사항을 설명해주세요",
+    "AI 생성 콘텐츠의 검증을 위한 유용한 도구와 리소스(학술 데이터베이스, 표절 검사 도구 등)를 소개해주세요"
+])
+    
+# 출력 형식 지정
+builder.add_format_instructions(
+    f"응답은 {output_format} 형식으로 구성해주세요. "
+    f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+    f"윤리적 고려사항과 원칙은 명확하게 설명하고, 구체적인 예시와 사례를 통해 이해를 돕습니다. "
+    f"체크리스트, 표, 플로우차트 등 시각적 요소를 활용하여 복잡한 윤리적 판단을 돕는 도구를 제공해주세요. "
+    f"학술적 정확성을 유지하면서도 실용적이고 적용 가능한 전략과 지침을 강조해주세요. "
+    f"다양한 학문 분야와 상황에 맞게 조정할 수 있는 유연한 프레임워크를 제시해주세요."
+)
+    
+return builder.build()
+
+def main():
+    """메인 함수"""
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="표절 위험 없는 AI 활용법",
+        topic_options=AI_ETHICAL_USAGE_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n프로그램이 사용자에 의해 중단되었습니다.")
+    except Exception as err:
+        print(f"\n오류 발생: {err}")
+        print("API 키나 네트워크 연결을 확인하세요.")
