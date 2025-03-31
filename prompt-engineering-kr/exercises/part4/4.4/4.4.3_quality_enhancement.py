@@ -1,7 +1,7 @@
 """
-Quality_enhancement 실습 모듈
+피드백 수집 및 반영 전략 실습 모듈
 
-Part 4 - 섹션 4.4.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 4 - 섹션 4.4.3 실습 코드: 학술 보고서 개선을 위한 효과적인 피드백 수집 및 반영 전략을 학습합니다.
 """
 
 import os
@@ -9,42 +9,174 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_quality_enhancement_prompt, get_enhanced_quality_enhancement_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+FEEDBACK_TOPICS = {
+    "1": {"name": "피드백 요청 설계", "topic": "효과적인 학술 피드백 요청 전략", "output_format": "요청 가이드"},
+    "2": {"name": "피드백 분석과 평가", "topic": "다양한 학술 피드백 분석 및 우선순위 설정", "output_format": "분석 프레임워크"},
+    "3": {"name": "피드백 통합 전략", "topic": "학술 보고서에 피드백을 효과적으로 통합하는 방법", "output_format": "통합 가이드"},
+    "4": {"name": "피드백 유형별 대응", "topic": "다양한 유형의 학술 피드백에 대한 대응 전략", "output_format": "대응 매뉴얼"},
+    "5": {"name": "피드백 사이클 관리", "topic": "지속적인 학술 피드백 사이클 구축 및 관리", "output_format": "프로세스 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "전문가 역할 설정: 학술 피드백 및 개선 전문가 역할 부여",
+        "맥락 설정: 학술 보고서 작성 및 피드백 과정의 구체적 상황 제시",
+        "구체적 요청: 피드백 수집, 분석, 통합에 관한 단계별 전략 요청",
+        "실용성 강조: 즉시 적용 가능한 템플릿과 도구 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "학술 보고서 개선을 위한 다양한 피드백 원천과 유형을 이해할 수 있습니다",
+    "효과적인 피드백을 이끌어내는 구체적인 전략과 질문법을 습득할 수 있습니다",
+    "다양한 피드백을 체계적으로 분석하고 우선순위를 설정하는 방법을 배울 수 있습니다",
+    "피드백을 선별적으로 수용하고 효과적으로 통합하는 기술을 개발할 수 있습니다",
+    "지속적인 피드백 사이클을 구축하고 관리하는 체계적인 접근법을 익힐 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "피드백 요청 설계" in topic:
+        builder.add_role(
+            "학술 피드백 전략 전문가", 
+            "유명 학술지 편집자이자 연구 방법론 교수로, 다양한 학술 분야에서 효과적인 피드백 요청 및 수집 전략을 가르치고 연구하는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 대학원생으로 첫 학술 논문을 준비 중이며, {topic}에 관심이 있습니다. "
+            f"다양한 유형의 피드백 제공자(지도교수, 동료 연구자, 해당 분야 전문가 등)로부터 "
+            f"유용하고 구체적인 피드백을 얻기 위한 효과적인 요청 전략과 도구가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "피드백 요청 시 고려해야 할 핵심 원칙과 일반적인 실수를 설명해주세요",
+            "피드백 제공자 유형별(지도교수, 동료, 분야 전문가 등)로 맞춤화된 요청 전략을 제시해주세요",
+            "효과적인 피드백을 이끌어내는 구체적인 질문 유형과 예시를 다양하게 제공해주세요",
+            "서면, 대면, 그룹 등 다양한 피드백 수집 방법의 장단점과 최적 활용 상황을 비교해주세요",
+            "즉시 사용 가능한 피드백 요청 이메일/문서 템플릿과 구조화된 피드백 양식을 제공해주세요"
+        ])
+        
+    elif "피드백 분석과 평가" in topic:
+        builder.add_role(
+            "학술 피드백 분석 전문가", 
+            "학술 글쓰기 컨설턴트이자 연구 평가 방법론 전문가로, 다양한 피드백을 체계적으로 분석하고 평가하는 방법을 연구하고 가르치는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 박사과정 학생으로 학위 논문 초안에 대해 다양한 피드백을 받았으며, {topic}에 도움이 필요합니다. "
+            f"상충되는 의견, 모호한 제안, 다양한 출처의 피드백을 체계적으로 정리하고 분석하여 "
+            f"실제로 어떤 피드백을 우선적으로 반영해야 할지 판단하는 방법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "다양한 피드백을 효과적으로 수집하고 조직화하는 체계적인 방법을 설명해주세요",
+            "피드백 간의 패턴, 일관성, 합의점, 차이점을 식별하는 분석 프레임워크를 제공해주세요",
+            "피드백을 평가하고 우선순위를 설정하기 위한 객관적인 기준과 의사결정 매트릭스를 개발해주세요",
+            "상충되는 피드백을 해결하기 위한 구체적인 전략과 사례를 제시해주세요",
+            "피드백 분석 및 평가를 위한 실용적인 템플릿과 도구(스프레드시트, 차트 등)를 포함해주세요"
+        ])
+        
+    elif "피드백 통합 전략" in topic:
+        builder.add_role(
+            "학술 개선 통합 전문가", 
+            "대학 학술 글쓰기 센터 디렉터이자 연구 방법론 교수로, 다양한 피드백을 효과적으로 통합하여 학술 보고서를 개선하는 전략을 가르치고 연구하는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 연구자로서 학술지 투고를 위한 논문 수정 과정에 있으며, {topic}에 관심이 있습니다. "
+            f"심사자들로부터 받은 다양한 피드백을 효과적으로 통합하고, 피드백에 기반한 변경 사항을 "
+            f"체계적으로 구현하는 방법에 대한 구체적인 전략과 프로세스가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "피드백 수용 및 거부를 위한 명확한 의사결정 기준과 프로세스를 설명해주세요",
+            "피드백을 통합하기 위한 단계별 접근법과 각 단계의 주요 고려사항을 제시해주세요",
+            "구조적, 내용적, 표현적 측면의 피드백을 효과적으로 통합하는 구체적인 전략을 제공해주세요",
+            "변경 사항을 추적하고 관리하는 체계적인 방법과 도구를 안내해주세요",
+            "피드백 통합 과정에서 발생할 수 있는 일반적인 도전과 이를 극복하는 전략도 포함해주세요"
+        ])
+        
+    elif "피드백 유형별 대응" in topic:
+        builder.add_role(
+            "학술 피드백 대응 전문가", 
+            "연구 심리학자이자 학술 출판 컨설턴트로, 다양한 유형의 학술 피드백에 효과적으로 대응하는 심리적, 실용적 전략을 연구하고 가르치는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 학술 논문 작성 과정에서 다양한 유형의 피드백을 받고 있어 {topic}에 관심이 있습니다. "
+            f"특히 비판적/부정적 피드백, 모호하거나 일반적인 피드백, 상충되는 피드백에 효과적으로 "
+            f"대응하고 이를 건설적으로 활용하는 심리적, 실용적 전략이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "다양한 피드백 유형(비판적, 모호한, 상충되는, 지나치게 세부적인 등)에 대한 효과적인 대응 전략을 제시해주세요",
+            "비판적/부정적 피드백에 대응할 때의 심리적 접근법과 실용적 전략을 단계별로 안내해주세요",
+            "모호하거나 일반적인 피드백을 구체화하고 유용하게 활용하는 방법을 설명해주세요",
+            "상충되는 피드백을 분석하고 해결하기 위한 체계적인 접근법을 개발해주세요",
+            "다양한 피드백 유형별 대응 사례와 대화 예시도 포함하여 실제 적용 방법을 보여주세요"
+        ])
+        
+    else:  # 피드백 사이클 관리
+        builder.add_role(
+            "학술 피드백 사이클 전문가", 
+            "연구 방법론 교수이자 학술 코칭 전문가로, 지속적이고 효과적인 피드백 사이클의 설계와 관리에 전문성을 가진 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 장기적인 연구 프로젝트를 진행 중인 연구자로, {topic}에 관심이 있습니다. "
+            f"일회성 피드백이 아닌, 연구 개발의 다양한 단계에서 체계적으로 피드백을 수집하고 "
+            f"통합하는 지속적인 피드백 사이클을 설계하고 관리하는 방법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "학술 보고서 개발 과정에서 효과적인 피드백 사이클을 설계하는 체계적인 접근법을 설명해주세요",
+            "연구 단계별(초기 개념화, 개요 작성, 초안 개발, 수정 등) 최적의 피드백 포인트와 유형을 제안해주세요",
+            "다양한 피드백 제공자와의 지속적인 관계를 구축하고 관리하는 전략을 안내해주세요",
+            "피드백을 통한 장기적인 학술적 성장과 자기 개발을 촉진하는 방법을 설명해주세요",
+            "지속적인 피드백 사이클을 시각화하고 관리하기 위한 프로세스 맵과 도구를 제공해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"이론적 설명과 실용적인 적용 전략을 균형 있게 포함해주세요. "
+        f"체계적인 프로세스와 단계별 접근법을 명확하게 설명해주세요. "
+        f"표, 템플릿, 체크리스트, 대화 예시 등 즉시 활용 가능한 실용적 도구를 포함해주세요. "
+        f"다양한 학문 분야와 연구 상황에 적용할 수 있는 유연한 전략을 제시해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Quality_enhancement")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="피드백 수집 및 반영 전략",
+        topic_options=FEEDBACK_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

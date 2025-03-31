@@ -1,7 +1,7 @@
 """
-Feedback_incorporation 실습 모듈
+단계별 개선 프로세스 적용 실습 모듈
 
-Part 4 - 섹션 4.4.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 4 - 섹션 4.4.2 실습 코드: 학술 보고서 개선을 위한 체계적인 단계별 프로세스를 학습합니다.
 """
 
 import os
@@ -9,42 +9,174 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_feedback_incorporation_prompt, get_enhanced_feedback_incorporation_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+IMPROVEMENT_PROCESS_TOPICS = {
+    "1": {"name": "종합적 진단", "topic": "학술 보고서의 종합적 평가 및 진단 방법", "output_format": "진단 가이드"},
+    "2": {"name": "개선 계획 수립", "topic": "우선순위 기반 학술 보고서 개선 계획 수립", "output_format": "계획 템플릿"},
+    "3": {"name": "개선 실행 전략", "topic": "체계적인 학술 보고서 개선 실행 방법", "output_format": "실행 가이드"},
+    "4": {"name": "반복적 개선 사이클", "topic": "지속적인 학술 보고서 개선 사이클 관리", "output_format": "프로세스 맵"},
+    "5": {"name": "맞춤형 개선 프로세스", "topic": "보고서 유형별 맞춤형 개선 프로세스", "output_format": "적용 프레임워크"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "전문가 역할 설정: 학술 개선 프로세스 전문가 역할 부여",
+        "맥락 설정: 학술 보고서 개선 과정의 특정 단계에 관한 구체적 상황 제시",
+        "단계별 요청: 해당 개선 단계의 체계적인 접근법 요청",
+        "실용성 강조: 구체적 도구, 템플릿, 예시 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "학술 보고서 개선을 위한 체계적이고 단계적인 프로세스를 이해할 수 있습니다",
+    "각 개선 단계별 구체적인 전략과 도구를 습득할 수 있습니다",
+    "우선순위 설정과 자원 효율적 배분을 통한 효과적인 개선 계획을 수립할 수 있습니다",
+    "지속적인 반복 개선 사이클의 가치와 적용 방법을 배울 수 있습니다",
+    "다양한 유형의 학술 보고서에 맞춤화된 개선 프로세스를 적용할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "종합적 진단" in topic:
+        builder.add_role(
+            "학술 보고서 진단 전문가", 
+            "대학 학술 글쓰기 센터 디렉터이자 연구 방법론 교수로, 다양한 학술 보고서의 품질을 체계적으로 진단하고 평가하는 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 대학원생으로 학위 논문을 준비 중이며, {topic}에 관한 체계적인 접근법이 필요합니다. "
+            f"제 논문의 현재 상태를 객관적으로 평가하고 주요 개선 영역을 식별하기 위한 "
+            f"종합적인 진단 프레임워크와 실용적인 도구가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "학술 보고서의 구조적, 내용적, 표현적 측면을 포괄하는 종합적인 진단 프레임워크를 개발해주세요",
+            "자기 평가와 외부 피드백을 효과적으로 통합하는 체계적인 진단 방법을 설명해주세요",
+            "다차원 진단 매트릭스와 같은 구체적인 진단 도구와 체크리스트를 제공해주세요",
+            "SWOT 분석을 활용한 보고서 강점, 약점, 기회, 위협 평가 방법을 단계별로 안내해주세요",
+            "다양한 학술 보고서 유형(연구 논문, 문헌 검토, 사례 연구 등)에 맞춘 진단 접근법도 포함해주세요"
+        ])
+        
+    elif "개선 계획 수립" in topic:
+        builder.add_role(
+            "학술 개선 계획 전문가", 
+            "연구 프로젝트 관리 컨설턴트이자 학술 글쓰기 코치로, 체계적인 보고서 개선 계획 수립과 우선순위 설정에 전문성을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 학술 논문 개선을 위해 다양한 피드백을 받은 연구자로, {topic}에 대한 체계적인 접근법이 필요합니다. "
+            f"제한된 시간과 자원 내에서 가장 중요한 개선 영역에 집중하기 위한 우선순위 설정 방법과 "
+            f"구체적이고 실행 가능한 개선 계획 수립 전략이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "진단 결과를 바탕으로 개선 영역의 우선순위를 설정하는 체계적인 방법과 매트릭스를 개발해주세요",
+            "SMART 목표 설정 원칙을 활용한 구체적이고 측정 가능한 개선 목표 수립 방법을 설명해주세요",
+            "핵심 개선 목표를 세부 작업으로 분해하는 작업 분해 구조(WBS) 개발 과정을 단계별로 안내해주세요",
+            "시간, 정보, 인적 자원 등 필요한 리소스를 효과적으로 계획하고 배분하는 전략을 제시해주세요",
+            "즉시 활용 가능한 개선 계획 템플릿과 실제 적용 예시를 포함해주세요"
+        ])
+        
+    elif "개선 실행 전략" in topic:
+        builder.add_role(
+            "학술 개선 실행 전문가", 
+            "학술 출판 컨설턴트이자 연구 생산성 코치로, 개선 계획을 효과적으로 실행하고 변화를 체계적으로 구현하는 전략에 전문성을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 박사 논문을 수정 중인 연구자로, {topic}에 관심이 있습니다. "
+            f"개선 계획을 구체적인 행동으로 옮기고, 구조, 내용, 표현 측면의 변화를 "
+            f"체계적으로 구현하는 효과적인 실행 전략과 방법론이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "구조적, 내용적, 표현적 개선을 효과적으로 실행하기 위한 체계적인 접근법과 전략을 설명해주세요",
+            "각 개선 영역별(구조 재조직, 내용 강화, 표현 세련화 등) 구체적인 실행 방법과 도구를 제공해주세요",
+            "개선 실행 중 일관성을 유지하고 상호 연관된 변경을 관리하는 통합적 접근법을 제시해주세요",
+            "변경 사항을 추적하고 관리하는 효과적인 방법과 도구를 안내해주세요",
+            "다양한 유형의 학술 보고서에 적용할 수 있는 개선 실행 사례와 예시도 포함해주세요"
+        ])
+        
+    elif "반복적 개선 사이클" in topic:
+        builder.add_role(
+            "학술 개선 사이클 전문가", 
+            "연구 방법론 교수이자 학술 개발 컨설턴트로, 지속적이고 반복적인 학술 보고서 개선 사이클의 설계와 관리에 전문성을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 장기적인 연구 프로젝트를 진행 중인 연구자로, {topic}에 관심이 있습니다. "
+            f"일회성 개선이 아닌 지속적이고 반복적인 개선 사이클을 통해 보고서의 품질을 "
+            f"점진적으로 향상시키는 체계적인 접근법과 관리 전략이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "학술 보고서의 지속적 개선을 위한 반복적 사이클 모델(평가-계획-실행-확인-조정)을 상세히 설명해주세요",
+            "각 반복 사이클에서의 초점과 우선순위 변화를 관리하는 전략을 제시해주세요",
+            "반복적 개선 과정을 효과적으로 문서화하고 학습 포인트를 추출하는 방법을 안내해주세요",
+            "개선 사이클의 범위와 규모를 효과적으로 관리하는 전략을 설명해주세요",
+            "반복적 개선 사이클을 시각화하고 관리하기 위한 실용적인 도구와 템플릿을 제공해주세요"
+        ])
+        
+    else:  # 맞춤형 개선 프로세스
+        builder.add_role(
+            "학술 보고서 맞춤형 개선 전문가", 
+            "다양한 학문 분야의 학술 출판 컨설턴트로, 보고서 유형과 분야별 특성에 맞춘 개선 프로세스 설계에 전문성을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 여러 유형의 학술 보고서를 작성하는 연구자로, {topic}에 관심이 있습니다. "
+            f"다양한 보고서 유형(연구 논문, 문헌 검토, 사례 연구, 실험 보고서, 정책 분석 등)의 "
+            f"고유한 특성과 요구사항에 맞춘 효과적인 개선 프로세스가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "다양한 학술 보고서 유형의 특성과 핵심 개선 영역을 체계적으로 비교 분석해주세요",
+            "각 보고서 유형별(연구 논문, 문헌 검토, 사례 연구 등) 맞춤형 개선 프로세스와 우선순위를 설명해주세요",
+            "학문 분야별(인문학, 사회과학, 자연과학, 공학 등) 특수성을 고려한 맞춤형 접근법을 제시해주세요",
+            "맞춤형 개선 프로세스를 설계하고 적용하기 위한 체계적인 프레임워크를 개발해주세요",
+            "다양한 보고서 유형에 적용 가능한 맞춤형 개선 템플릿과 체크리스트를 포함해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"이론적 설명과 실용적인 적용 방법을 균형 있게 포함해주세요. "
+        f"단계별 프로세스와 전략을 시각적으로 명확하게 설명해주세요. "
+        f"표, 다이어그램, 체크리스트, 템플릿 등 즉시 활용 가능한 도구를 제공해주세요. "
+        f"다양한 유형의 학술 보고서와 학문 분야에 적용할 수 있는 유연한 접근법을 제시해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Feedback_incorporation")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="단계별 개선 프로세스 적용",
+        topic_options=IMPROVEMENT_PROCESS_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

@@ -1,7 +1,7 @@
 """
-Revision_strategies 실습 모듈
+실제 사례: 기존 보고서 개선하기 실습 모듈
 
-Part 4 - 섹션 4.4.1 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 4 - 섹션 4.4.1 실습 코드: 실제 사례를 통한 학술 보고서 개선 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,173 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_revision_strategies_prompt, get_enhanced_revision_strategies_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+REPORT_IMPROVEMENT_TOPICS = {
+    "1": {"name": "연구 논문 개선", "topic": "연구 논문 사례 분석 및 개선 전략", "output_format": "사례 분석"},
+    "2": {"name": "문헌 검토 개선", "topic": "문헌 검토 보고서 사례 분석 및 개선", "output_format": "개선 가이드"},
+    "3": {"name": "사례 연구 개선", "topic": "사례 연구 보고서의 품질 향상 전략", "output_format": "Before/After 사례"},
+    "4": {"name": "기술 보고서 개선", "topic": "기술 보고서 사례 분석 및 개선 방법", "output_format": "개선 프레임워크"},
+    "5": {"name": "종합적 보고서 진단", "topic": "학술 보고서 종합적 진단 및 개선 사례", "output_format": "진단 매트릭스"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "전문가 역할 설정: 학술 편집 및 개선 전문가 역할 부여",
+        "맥락 설정: 특정 유형의 학술 보고서 개선 과정의 구체적 상황 제시",
+        "사례 접근: 실제 사례를 통한 Before/After 분석 요청",
+        "구체적 요청: 구조, 내용, 표현 측면의 구체적 개선 전략 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "실제 학술 보고서 사례를 통해 일반적인 문제점과 개선 기회를 식별할 수 있습니다",
+    "다양한 유형의 학술 보고서에 대한 효과적인 진단 방법을 습득할 수 있습니다",
+    "구조적, 내용적, 표현적 측면에서 보고서 개선 전략을 배울 수 있습니다",
+    "Before/After 비교를 통해 효과적인 개선 방법의 실제 효과를 확인할 수 있습니다",
+    "자신의 보고서에 적용 가능한 실질적인 개선 전략을 개발할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "연구 논문" in topic:
+        builder.add_role(
+            "연구 논문 개선 전문가", 
+            "저명한 학술지 편집자이자 연구 방법론 교수로, 수많은 연구 논문의 개선을 지도해온 전문가입니다. 특히 연구 질문, 방법론적 엄격성, 결과 해석, 문헌 통합 측면의 개선에 전문성을 갖고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 대학원생으로 첫 연구 논문을 준비 중이며, {topic}에 대한 실질적인 지침이 필요합니다. "
+            f"연구 논문에서 흔히 발견되는 구조적, 내용적, 표현적 문제점과 이를 효과적으로 개선한 실제 사례를 "
+            f"통해 자신의 논문에 적용할 수 있는 구체적인 전략을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "연구 논문에서 흔히 발견되는 주요 문제점을 구조, 내용, 표현 측면에서 체계적으로 분석해주세요",
+            "실제 연구 논문의 Before/After 사례를 통해 각 개선 영역의 구체적인 변화를 보여주세요",
+            "연구 질문, 방법론, 결과 제시, 논의 등 핵심 섹션별 개선 전략을 상세히 설명해주세요",
+            "효과적인 개선을 위한 체계적인 진단 도구나 체크리스트를 제공해주세요",
+            "다양한 연구 분야(인문학, 사회과학, 자연과학 등)에 적용 가능한 일반적 원칙과 분야별 특수 전략도 포함해주세요"
+        ])
+        
+    elif "문헌 검토" in topic:
+        builder.add_role(
+            "문헌 검토 개선 전문가", 
+            "학술 출판사의 문헌 검토 에디터이자 연구 방법론 교수로, 문헌 검토의 구조화, 비판적 분석, 통합적 내러티브 구축에 전문성을 갖춘 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 학위 논문의 문헌 검토 챕터를 작성 중인 박사과정 학생으로, {topic}에 어려움을 겪고 있습니다. "
+            f"현재 제 문헌 검토는 단순 나열식이고 비판적 분석이 부족하다는 피드백을 받았습니다. "
+            f"실제 사례를 통해 문헌 검토의 구조적 조직화, 비판적 분석 강화, 통합적 내러티브 구축 방법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "문헌 검토 보고서에서 흔히 발견되는 구조적, 내용적, 표현적 문제점을 체계적으로 분석해주세요",
+            "단순 나열식에서 테마별/개념별 구조로 재조직화하는 구체적인 전략과 사례를 제시해주세요",
+            "비판적 분석과 종합을 강화하는 방법과 실제 Before/After 예시를 포함해주세요",
+            "다양한 문헌을 통합하여 응집력 있는 학술적 내러티브를 구축하는 전략을 설명해주세요",
+            "문헌 검토 개선을 위한 자기 진단 도구와 단계별 개선 프로세스도 제공해주세요"
+        ])
+        
+    elif "사례 연구" in topic:
+        builder.add_role(
+            "사례 연구 개선 전문가", 
+            "질적 연구 방법론 교수이자 사례 연구 전문 편집자로, 다양한 분야의 사례 연구 보고서 개선에 전문성을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 사례 연구 방법을 활용한 연구 논문을 준비 중인 연구자로, {topic}에 대한 지침이 필요합니다. "
+            f"현재 사례에 대한 풍부한 데이터는 있으나, 이를 분석적이고 통찰력 있는 사례 연구로 발전시키는 데 "
+            f"어려움을 겪고 있습니다. 실제 사례 연구 보고서의 개선 사례를 통해 효과적인 전략을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "사례 연구 보고서에서 흔히 발견되는 구조적, 내용적, 표현적 문제점을 상세히 분석해주세요",
+            "단순 서술적 접근에서 분석적 사례 연구로 발전시키는 구체적인 전략과 예시를 제공해주세요",
+            "사례 연구의 맥락 설정, 이론적 프레임워크 연결, 다각적 분석 강화를 위한 방법을 설명해주세요",
+            "실제 사례 연구 보고서의 Before/After 예시를 통해 효과적인 개선 사례를 보여주세요",
+            "다양한 학문 분야(경영학, 사회학, 교육학 등)의 사례 연구 특성을 고려한 분야별 개선 전략도 포함해주세요"
+        ])
+        
+    elif "기술 보고서" in topic:
+        builder.add_role(
+            "기술 보고서 개선 전문가", 
+            "과학 기술 분야의 출판 컨설턴트이자 기술 커뮤니케이션 교수로, 복잡한 기술 정보를 명확하고 접근 가능하게 전달하는 보고서 개선에 전문성을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 공학 분야 연구자로 기술 보고서를 작성 중이며, {topic}에 관심이 있습니다. "
+            f"기술적으로 정확한 내용을 갖추고 있지만, 구조, 명확성, 접근성 측면에서 개선이 필요하다는 "
+            f"피드백을 받았습니다. 실제 기술 보고서 개선 사례를 통해 효과적인 전략을 학습하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "기술 보고서에서 흔히 발견되는 구조적, 내용적, 표현적 문제점을 체계적으로 분석해주세요",
+            "복잡한 기술 정보의 효과적인 계층화 및 구조화 전략과 실제 예시를 제공해주세요",
+            "기술적 정확성을 유지하면서도 접근성과 가독성을 높이는 구체적인 방법을 설명해주세요",
+            "데이터 시각화, 표, 그림 등의 효과적인 활용과 개선 사례를 Before/After 형식으로 보여주세요",
+            "다양한 독자층(전문가, 의사결정자, 비전문가)을 고려한 맞춤형 전략도 포함해주세요"
+        ])
+        
+    else:  # 종합적 보고서 진단
+        builder.add_role(
+            "학술 보고서 진단 전문가", 
+            "다양한 유형의 학술 보고서를 종합적으로 진단하고 개선하는 학술 컨설턴트로, 체계적인 진단 도구와 다차원적 개선 전략 개발에 전문성을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 다양한 학술 보고서를 작성하는 연구자로, {topic}에 대한 체계적인 접근법이 필요합니다. "
+            f"보고서의 품질을 객관적으로 진단하고 문제점을 식별하여 체계적으로 개선하는 종합적인 "
+            f"프레임워크와 실제 적용 사례를 통해 효과적인 전략을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "다양한 유형의 학술 보고서를 종합적으로 진단하기 위한 다차원 진단 프레임워크를 개발해주세요",
+            "구조적, 내용적, 표현적 측면을 포괄하는 체계적인 보고서 평가 매트릭스와 체크리스트를 제공해주세요",
+            "SWOT 분석 등을 활용한 보고서 강점과 약점 분석 방법을 실제 사례와 함께 설명해주세요",
+            "여러 유형의 학술 보고서에 적용 가능한, 우선순위 기반의 체계적 개선 접근법을 제시해주세요",
+            "실제 보고서 진단 및 개선 사례를 Before/After 형식으로 제시하여 효과적인 변화를 보여주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"이론적 설명과 실제 사례를 균형 있게 포함하고, Before/After 예시를 통해 개선 효과를 시각적으로 보여주세요. "
+        f"표, 체크리스트, 진단 도구 등 실용적인 요소를 포함하여 즉시 활용 가능한 자료를 제공해주세요. "
+        f"다양한 학문 분야와 보고서 유형에 적용할 수 있는 일반 원칙과 분야별 특수 전략을 모두 다루어주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Revision_strategies")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="실제 사례 기존 보고서 개선하기",
+        topic_options=REPORT_IMPROVEMENT_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
