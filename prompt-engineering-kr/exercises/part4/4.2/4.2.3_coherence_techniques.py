@@ -1,7 +1,8 @@
 """
-Coherence_techniques 실습 모듈
+주장-근거-반론 구조화 실습 모듈
 
-Part 4 - 섹션 4.2.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 4 - 섹션 4.2.3 실습 코드: 효과적인 주장-근거-반론 구조를 개발하고
+논증의 설득력을 높이는 방법을 실습합니다.
 """
 
 import os
@@ -9,42 +10,136 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_coherence_techniques_prompt, get_enhanced_coherence_techniques_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+ARGUMENTATION_TOPICS = {
+    "1": {"name": "주장 개발", "topic": "효과적인 학술적 주장 개발 및 정교화 방법", "output_format": "개발 가이드"},
+    "2": {"name": "근거 활용", "topic": "다양한 유형의 근거를 수집하고 효과적으로 활용하는 전략", "output_format": "근거 매핑 도구"},
+    "3": {"name": "반론 예상", "topic": "잠재적 반론을 예상하고 효과적으로 대응하는 기법", "output_format": "반론-대응 프레임워크"},
+    "4": {"name": "논증 균형", "topic": "균형 잡힌 주장-근거-반론 구조 개발 방법", "output_format": "균형 평가 도구"},
+    "5": {"name": "학문별 특성", "topic": "다양한 학문 분야의 논증 특성과 적용 전략", "output_format": "분야별 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "역할 설정: 학술 논증 전문가",
+        "맥락 제공: 학생의 논증 개발 목표와 어려움 명시",
+        "구체적 요청: 체계적인 접근법과 실용적 도구 요청",
+        "형식 지정: 단계별 가이드와 평가 도구 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "효과적인 학술적 주장은 명확하고, 구체적이며, 검증 가능하고, 중요성을 가져야 합니다",
+    "다양한 유형의 근거(통계, 연구 결과, 사례 연구, 전문가 의견 등)를 균형 있게 활용하는 것이 중요합니다",
+    "강력한 반론을 예상하고 대응하는 것은 논증의 견고성과 설득력을 크게 향상시킵니다",
+    "반론에 대한 다양한 대응 전략(반박, 양보, 재맥락화, 종합 등)을 상황에 맞게 활용해야 합니다",
+    "각 학문 분야는 고유의 논증 전통과 기대를 가지고 있으며, 이를 이해하고 적용하는 것이 중요합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "학술 논증 전문가", 
+        "효과적인 주장-근거-반론 구조를 개발하고 논증의 설득력을 향상시키는 기법을 가르치는 전문가로, 다양한 학문 분야에서 설득력 있는 학술적 글쓰기를 지원합니다."
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 대학생으로 {topic}에 관심이 있습니다. "
+        f"현재 학술 에세이/보고서를 작성하고 있으며, 주장-근거-반론 구조를 효과적으로 "
+        f"개발하는 데 어려움을 겪고 있습니다. 저의 논증이 균형 잡히고 설득력 있게 "
+        f"구성될 수 있도록 체계적인 방법과 실용적인 도구가 필요합니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "주장 개발" in topic:
+        builder.add_instructions([
+            "효과적인 학술적 주장의 특성(명확성, 구체성, 논쟁 가능성, 검증 가능성, 중요성)을 상세히 설명해주세요",
+            "다양한 유형의 주장(사실적, 정의적, 인과적, 평가적, 정책적)과 각각의 적합한 상황을 비교해주세요",
+            "초기 주장을 더 명확하고 방어 가능하게 발전시키는 단계별 프로세스를 안내해주세요",
+            "학술적 주장의 범위를 적절하게 조정하는 구체적인 전략을 제시해주세요",
+            "주장의 강도와 확실성을 적절히 조절하는 언어적 전략(한정어, 확신 표현 등)을 설명해주세요"
+        ])
+    elif "근거 활용" in topic:
+        builder.add_instructions([
+            "다양한 유형의 근거(통계, 연구 결과, 사례 연구, 전문가 의견 등)와 각각의 강점 및 적합한 상황을 상세히 설명해주세요",
+            "신뢰할 수 있는 근거를 식별하고 평가하는 기준(신뢰성, 관련성, 대표성, 충분성)을 제시해주세요",
+            "주장-근거 연결을 강화하는 논리적 추론 방법을 구체적으로 안내해주세요",
+            "다양한 근거를 효과적으로 통합하고 구조화하는 전략(계층화, 제시 순서 등)을 설명해주세요",
+            "근거를 학술적으로 적절하게 소개하고 분석하는 표현과 구조를 제안해주세요"
+        ])
+    elif "반론 예상" in topic:
+        builder.add_instructions([
+            "다양한 유형의 반론(사실적, 해석적, 방법론적, 개념적, 대안적, 함의적, 관점적)과 특징을 상세히 설명해주세요",
+            "잠재적 반론을 체계적으로 예상하고 식별하는 방법을 구체적으로 안내해주세요",
+            "반론을 공정하게 표현하고 논증에 통합하는 효과적인 방법을 설명해주세요",
+            "다양한 대응 전략(반박, 양보, 재맥락화, 종합 등)과 각각의 적합한 상황을 비교해주세요",
+            "반론과 대응을 학술적으로 적절하게 표현하는 언어와 구조를 제안해주세요"
+        ])
+    elif "논증 균형" in topic:
+        builder.add_instructions([
+            "균형 잡힌 주장-근거-반론 구조의 중요성과 특성을 상세히 설명해주세요",
+            "논증 요소들(주장, 근거, 반론, 대응) 간의 적절한 비중과 균형을 결정하는 기준을 제시해주세요",
+            "논증 구조를 체계적으로 평가하고 개선하는 단계별 프로세스를 안내해주세요",
+            "균형 잡힌 논증 구조의, 다양한 배치 옵션(섹션별 통합, 독립 섹션, 교차 패턴 등)과 장단점을 비교해주세요",
+            "주장의 강도, 근거의 다양성, 반론의 공정성 등을 평가하는 구체적인 체크리스트를 제공해주세요"
+        ])
+    elif "학문별 특성" in topic:
+        builder.add_instructions([
+            "다양한 학문 분야(인문학, 사회과학, 자연과학, 학제간 연구 등)의 논증 특성과 전통의 차이점을 상세히 설명해주세요",
+            "각 학문 분야에 적합한 주장 유형, 근거 활용 방식, 반론 고려 방법을 비교해주세요",
+            "학문 분야별로 효과적인 논증 구조와 표현 방식에 대한 구체적인 가이드라인을 제시해주세요",
+            "다양한 학문적 관점을 통합하는 학제간 연구에서의 효과적인 논증 전략을 설명해주세요",
+            "각 학문 분야의 논증 사례와 모범 사례를 구체적으로 제시해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}에 대한 체계적이고 실용적인 접근법을 설명해주세요",
+            "이론적 배경과 주요 개념을 명확히 설명해주세요",
+            "단계별 프로세스와 구체적인 적용 방법을 제시해주세요",
+            "학생이 직접 적용할 수 있는 실용적인 전략과 도구를 포함해주세요",
+            "다양한 학문적 맥락에 맞게 조정할 수 있는 유연한 접근법을 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"실제 사용 가능한 체크리스트, 템플릿, 분석 도구 등의 실용적인 자료를 포함해주세요. "
+        f"다양한 학문 분야에서의 구체적인 예시와 사례를 포함하여 개념을 명확히 해주세요. "
+        f"모든 내용은 대학생이 직접 적용할 수 있도록 실용적이고 단계별로 작성해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Coherence_techniques")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="주장-근거-반론 구조화 기법",
+        topic_options=ARGUMENTATION_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
