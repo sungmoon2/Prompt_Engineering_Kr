@@ -136,10 +136,34 @@ def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
         ])
     
     # 출력 형식 지정
-    builder.add_format_instructions(
-        f"응답은 {output_format} 형식으로 구성해주세요. "
-        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
-        f"변환 예시는 표 형태로 '일상 표현' → '학술 표현' 형식으로 정리해주세요. "
-        f"학술적 개념은 명확하게 정의하고, 적용 가능한 구체적인 전략을 단계별로 설명해주세요. "
-        f"실제 글쓰기에 바로 적용할 수 있는 체크리스트나 가이드라인도 포함해주세요. "
-        f"내용은 학부생/대학원생이 쉽게 이해하고 적용할 수 있도록, 전문적이면서도 접근하기 쉽게 작성해주세요."
+builder.add_format_instructions(
+    f"응답은 {output_format} 형식으로 구성해주세요. "
+    f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+    f"변환 예시는 표 형태로 '일상 표현' → '학술 표현' 형식으로 정리해주세요. "
+    f"학술적 개념은 명확하게 정의하고, 적용 가능한 구체적인 전략을 단계별로 설명해주세요. "
+    f"실제 글쓰기에 바로 적용할 수 있는 체크리스트나 가이드라인도 포함해주세요. "
+    f"내용은 학부생/대학원생이 쉽게 이해하고 적용할 수 있도록, 전문적이면서도 접근하기 쉽게 작성해주세요."
+)
+    
+return builder.build()
+
+def main():
+    """메인 함수"""
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="일상 언어에서 학술 언어로 전환하기",
+        topic_options=ACADEMIC_LANGUAGE_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n프로그램이 사용자에 의해 중단되었습니다.")
+    except Exception as err:
+        print(f"\n오류 발생: {err}")
+        print("API 키나 네트워크 연결을 확인하세요.")
