@@ -1,7 +1,7 @@
 """
-Concept_implementation 실습 모듈
+개념에서 실제 구현으로 연결하기 실습 모듈
 
-Part 5 - 섹션 5.1.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.1.3 실습 코드: 이론적 개념을 실제 코드 구현으로 전환하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,145 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_concept_implementation_prompt, get_enhanced_concept_implementation_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+CONCEPT_IMPLEMENTATION_TOPICS = {
+    "1": {"name": "캐싱 시스템", "topic": "효율적인 데이터 캐싱 시스템 설계 및 구현", "output_format": "단계별 구현 가이드"},
+    "2": {"name": "이벤트 시스템", "topic": "이벤트 기반 아키텍처 구현 방법", "output_format": "구현 튜토리얼"},
+    "3": {"name": "로깅 프레임워크", "topic": "확장 가능한 로깅 시스템 설계 및 구현", "output_format": "구현 가이드"},
+    "4": {"name": "설정 관리자", "topic": "다양한 소스의 설정을 통합 관리하는 시스템", "output_format": "단계별 구현 가이드"},
+    "5": {"name": "작업 스케줄러", "topic": "비동기 작업 스케줄링 및 관리 시스템", "output_format": "구현 튜토리얼"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 구현 요청"],
+    "enhanced": [
+        "단계적 접근: 간단한 프로토타입부터 완성된 구현까지 단계별 접근 요청",
+        "설계 요소: 핵심 컴포넌트와 인터페이스 설계 명세 요청",
+        "패턴 적용: 적절한 디자인 패턴과 모범 사례 통합 요청",
+        "품질 고려: 견고성, 확장성, 테스트 가능성 등 품질 요소 포함 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "추상적 개념을 구현할 때는's 가장 단순한 형태의 프로토타입부터 시작하여 점진적으로 발전시키는 것이 효과적입니다",
+    "복잡한 시스템은 핵심 컴포넌트와 인터페이스를 먼저 설계한 후 구현을 진행하세요",
+    "디자인 패턴과 언어/플랫폼의 관용적 표현을 활용하면 더 품질 높은 구현이 가능합니다",
+    "단계적 구현 과정에서 각 단계마다 테스트를 통해 기능을 검증하는 습관이 중요합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}을 구현하는 방법을 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 설정
+    builder.add_role(
+        "시스템 설계 및 구현 전문가", 
+        "이론적 개념을 실용적이고 확장 가능한 코드로 변환하는 전문가로, 복잡한 시스템을 단계적으로 설계하고 구현하는 방법론에 능숙합니다."
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 {topic}을 구현하려는 중급 개발자입니다. "
+        f"개념에 대한 이론적 이해는 있지만, 이를 실제 코드로 효과적으로 구현하는 방법에 대한 체계적인 가이드가 필요합니다. "
+        f"간단한 프로토타입부터 시작하여 완성도 높은 솔루션으로 발전시키는 단계적 접근법을 배우고 싶습니다. "
+        f"또한 적절한 디자인 패턴과 모범 사례를 적용하여 견고하고 확장 가능한 구현을 만들고 싶습니다."
+    )
+    
+    # 주제별 맞춤 지시사항 추가
+    if "캐싱" in topic:
+        builder.add_instructions([
+            "캐싱 시스템의 핵심 개념과 원리를 간략히 설명해주세요",
+            "간단한 인메모리 캐시부터 시작하여 점진적으로 기능을 추가하는 단계별 구현 방법을 Python 코드로 보여주세요",
+            "캐시 교체 정책(LRU, LFU 등), 만료 시간, 크기 제한 등의 기능을 어떻게 추가하는지 설명해주세요",
+            "스레드 안전성, 분산 캐싱, 영속성 등 고급 기능으로 어떻게 확장할 수 있는지 설명해주세요",
+            "각 구현 단계에서 적용할 수 있는 디자인 패턴(예: 데코레이터, 팩토리, 싱글톤 등)과 그 이점을 설명해주세요"
+        ])
+    elif "이벤트" in topic:
+        builder.add_instructions([
+            "이벤트 시스템의 기본 개념과 이벤트 기반 아키텍처의 장점을 간략히 설명해주세요",
+            "간단한 발행-구독(Pub-Sub) 패턴의 이벤트 시스템부터 시작하여 단계적으로 기능을 확장하는 Python 구현 예제를 보여주세요",
+            "이벤트 등록, 발행, 구독 취소, 이벤트 히스토리 관리 등의 기능을 단계별로 추가하는 방법을 설명해주세요",
+            "스레드 안전성, 이벤트 필터링, 우선순위 기반 처리 등 고급 기능으로 어떻게 확장할 수 있는지 보여주세요",
+            "실제 애플리케이션에서 이벤트 시스템을 활용하는 사례와 적용 시 고려해야 할 트레이드오프도 설명해주세요"
+        ])
+    elif "로깅" in topic:
+        builder.add_instructions([
+            "로깅 시스템의 핵심 개념과 필요성을 간략히 설명해주세요",
+            "간단한 로깅 클래스부터 시작하여 단계적으로 기능을 확장하는 Python 구현 예제를 보여주세요",
+            "다양한 로그 수준, 포맷팅, 출력 대상(콘솔, 파일, 네트워크 등) 지원 기능을 단계별로 추가하는 방법을 설명해주세요",
+            "회전(rotation), 비동기 로깅, 구조화된 로깅 등 고급 기능으로 어떻게 확장할 수 있는지 보여주세요",
+            "각 단계에서 적용할 수 있는 디자인 패턴(싱글톤, 팩토리, 데코레이터 등)과 그 이점을 설명해주세요"
+        ])
+    elif "설정" in topic:
+        builder.add_instructions([
+            "설정 관리 시스템의 기본 개념과 필요성을 간략히 설명해주세요",
+            "간단한 설정 관리자부터 시작하여 단계적으로 기능을 확장하는 Python 구현 예제를 보여주세요",
+            "다양한 소스(파일, 환경 변수, 명령줄 인수 등)에서 설정을 로드하는 기능을 단계별로 추가하는 방법을 설명해주세요",
+            "설정 유효성 검증, 동적 재로드, 계층적 설정, 설정 변경 알림 등 고급 기능으로 어떻게 확장할 수 있는지 보여주세요",
+            "설정 관리를 위한 최적의 디자인 패턴과 실제 애플리케이션에서의 활용 사례도 포함해주세요"
+        ])
+    elif "스케줄러" in topic:
+        builder.add_instructions([
+            "작업 스케줄링 시스템의 기본 개념과 필요성을 간략히 설명해주세요",
+            "간단한 작업 스케줄러부터 시작하여 단계적으로 기능을 확장하는 Python 구현 예제를 보여주세요",
+            "일회성/반복 작업 예약, 우선순위 기반 실행, 작업 취소 등의 기능을 단계별로 추가하는 방법을 설명해주세요",
+            "병렬 실행, 작업 의존성 관리, 실패 처리 및 재시도 등 고급 기능으로 어떻게 확장할 수 있는지 보여주세요",
+            "스케줄러 구현에 적합한 디자인 패턴과 실제 사용 사례도 함께 설명해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}의 핵심 개념과 원리를 간략히 설명해주세요",
+            "간단한 기본 구현부터 시작하여 단계적으로 기능을 확장하는 구현 방법을 Python 코드로 보여주세요",
+            "핵심 컴포넌트와 인터페이스 설계, 그리고 각 기능을 단계별로 추가하는 방법을 설명해주세요",
+            "고급 기능과 최적화 방법, 그리고 실제 애플리케이션으로의 확장 방법을 설명해주세요",
+            "이 구현에 적용할 수 있는 디자인 패턴과 모범 사례, 그리고 실제 사용 사례도 포함해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 코드 블록, 다이어그램 등을 명확히 구분해주세요. "
+        f"다음 섹션들을 포함해주세요:\n\n"
+        f"1. 개념 소개: 구현할 시스템의 핵심 개념과 원리\n"
+        f"2. 설계 개요: 주요 컴포넌트와 인터페이스 설계\n"
+        f"3. 단계별 구현:\n"
+        f"   - 단계 1: 최소 실행 가능 구현 (핵심 기능)\n"
+        f"   - 단계 2: 기능 확장 (추가 기능)\n"
+        f"   - 단계 3: 견고성 강화 (예외 처리, 에지 케이스)\n"
+        f"   - 단계 4: 최적화 및 고급 기능\n"
+        f"4. 디자인 패턴 적용: 구현에 활용된 패턴과 이점\n"
+        f"5. 실제 사용 사례: 애플리케이션 통합 예제\n\n"
+        f"각 구현 단계에서 완전한 코드 예제와 함께 설명을 제공해주세요. "
+        f"코드는 실행 가능하고 잘 주석 처리된 형태로 작성하고, "
+        f"각 단계 간의 변화와 발전 과정이 명확히 드러나도록 해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Concept_implementation")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="개념에서 실제 구현으로 연결하기",
+        topic_options=CONCEPT_IMPLEMENTATION_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
