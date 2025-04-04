@@ -1,3 +1,8 @@
 .env
 prompt-engineering-kr/.env
 !.env.example
+
+.log
+.venv
+.vscode
+*.md
