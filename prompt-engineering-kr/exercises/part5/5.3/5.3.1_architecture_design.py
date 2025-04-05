@@ -1,7 +1,7 @@
 """
-Architecture_design 실습 모듈
+아키텍처 설계 지원 요청법 실습 모듈
 
-Part 5 - 섹션 5.3.1 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.3.1 실습 코드: 효과적인 아키텍처 설계 요청 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,198 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_architecture_design_prompt, get_enhanced_architecture_design_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+ARCHITECTURE_DESIGN_TOPICS = {
+    "1": {"name": "웹 쇼핑몰", "topic": "확장 가능한 온라인 쇼핑몰 아키텍처", "output_format": "아키텍처 설계서"},
+    "2": {"name": "모바일 앱", "topic": "크로스 플랫폼 모바일 애플리케이션 아키텍처", "output_format": "설계 문서"},
+    "3": {"name": "데이터 분석", "topic": "실시간 데이터 분석 시스템 아키텍처", "output_format": "시스템 설계도"},
+    "4": {"name": "클라우드 마이그레이션", "topic": "레거시 시스템의 클라우드 마이그레이션 아키텍처", "output_format": "마이그레이션 계획"},
+    "5": {"name": "IoT 플랫폼", "topic": "확장 가능한 IoT 데이터 수집 및 처리 플랫폼 아키텍처", "output_format": "아키텍처 문서"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["아키텍처 설계에 대한 일반적 요청"],
+    "enhanced": [
+        "역할 정의: 소프트웨어 아키텍트 역할 부여",
+        "상세 요구사항: 기능적/비기능적 요구사항 명시",
+        "기술 스택 정보: 제약조건과 선호 기술 제공", 
+        "구체적 요청: 주요 아키텍처 구성 요소 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "효과적인 아키텍처 설계는 명확한 요구사항과, 제약조건 정의에서 시작합니다",
+    "기능적, 비기능적 요구사항을 모두 고려한 균형 잡힌 아키텍처가 중요합니다",
+    "확장성, 유지보수성, 보안성 등 품질 속성에 대한 명시적 요청이 필요합니다",
+    "다양한 아키텍처 패턴의 장단점을 이해하고 적절한 패턴을 선택해야 합니다",
+    "아키텍처 설계는 반복적 과정으로, 초기 설계 후 구체화 질문이 중요합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}를 설계해주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "온라인 쇼핑몰" in topic:
+        builder.add_role(
+            "소프트웨어 아키텍트", 
+            "대규모 웹 애플리케이션 설계 전문가로, 확장 가능하고 유지보수하기 쉬운 e-커머스 시스템 아키텍처를 설계한 풍부한 경험을 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 중소 규모의 온라인 쇼핑몰을 개발하려는 프로젝트 리더입니다. "
+            f"월 사용자 약 30,000명을 대상으로 하며, 향후 1-2년 내에 100,000명 수준으로 성장할 것으로 예상합니다. "
+            f"현재 프로젝트의 아키텍처를 설계하는 단계로, 확장성과 유지보수성이 우수한 구조가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "확장 가능한 온라인 쇼핑몰 아키텍처를 설계해주세요",
+            "다음 주요 기능을 지원해야 합니다: 상품 카탈로그, 장바구니, 주문 처리, 결제 통합, 사용자 관리, 리뷰 및 평점",
+            "다음 기술 스택을 사용할 예정입니다: React (프론트엔드), Node.js (백엔드), PostgreSQL (주 데이터베이스), 필요시 Redis 및 기타 기술",
+            "다음 비기능적 요구사항을 충족해야 합니다: 할인 행사 기간 트래픽 급증 대응, 모바일/데스크탑 지원, 결제 처리 보안, 새로운 기능 추가 용이성",
+            "아키텍처 다이어그램, 주요 컴포넌트 설명, 데이터 흐름, 확장성 전략, 보안 고려사항, 배포 아키텍처를 포함해주세요"
+        ])
+        
+    elif "모바일 애플리케이션" in topic:
+        builder.add_role(
+            "모바일 애플리케이션 아키텍트", 
+            "iOS 및 Android 플랫폼에 대한 깊은 이해와 크로스 플랫폼 개발 경험을 가진 전문가로, 확장 가능하고 유지보수하기 쉬운 모바일 애플리케이션 아키텍처 설계에 전문성을 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 건강 및 피트니스 트래킹 앱을 개발하려는 스타트업의 기술 책임자입니다. "
+            f"iOS와 Android 모두 지원해야 하며, 개발 자원이 제한되어 있어 코드 재사용성이 중요합니다. "
+            f"앱은 사용자 활동 추적, 목표 설정, 진행 상황 분석, 소셜 공유 기능을 포함해야 합니다. "
+            f"오프라인 상태에서도 기본 기능이 작동해야 하며, 백엔드 서버와 데이터 동기화가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "크로스 플랫폼 모바일 애플리케이션 아키텍처를 설계해주세요",
+            "다음 주요 기능을 지원해야 합니다: 사용자 등록/인증, 활동 기록 및 추적, 목표 설정 및 관리, 데이터 분석 및 시각화, 소셜 공유",
+            "다음 기술 스택을 고려 중입니다: Flutter/React Native (크로스 플랫폼), Firebase/자체 백엔드, 로컬 데이터베이스",
+            "다음 비기능적 요구사항을 충족해야 합니다: 오프라인 기능, 배터리 효율성, 민감한 건강 데이터 보안, 서버-클라이언트 동기화",
+            "클라이언트 아키텍처, 백엔드 통합, 데이터 관리 전략, 오프라인 지원 방법, 보안 고려사항을 포함해주세요"
+        ])
+        
+    elif "데이터 분석" in topic:
+        builder.add_role(
+            "데이터 시스템 아키텍트", 
+            "대용량 데이터 처리 및 분석 시스템을 설계하는 전문가로, 실시간 및 배치 데이터 파이프라인, 데이터 웨어하우스, 분석 도구 통합에 깊은 전문성을 갖고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 대규모 e-커머스 회사에서 실시간 데이터 분석 플랫폼을 구축하려는 데이터 엔지니어링 팀장입니다. "
+            f"현재 일일 수억 건의 이벤트 데이터(페이지 뷰, 클릭, 구매 등)를 처리해야 하며, "
+            f"마케팅 팀과 제품 팀에게 실시간 인사이트와 대시보드를 제공해야 합니다. "
+            f"기존 배치 처리 시스템을 보완하면서, 중요 지표에 대한 실시간 모니터링이 가능한 아키텍처가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "실시간 데이터 분석 시스템 아키텍처를 설계해주세요",
+            "다음 데이터 소스를 처리해야 합니다: 웹/모바일 이벤트, 트랜잭션 데이터, 사용자 행동 데이터, 제품 데이터",
+            "다음 기술 스택을 고려 중입니다: Kafka, Spark Streaming, Elasticsearch, Redshift/Snowflake, Airflow, Tableau/PowerBI",
+            "다음 요구사항을 충족해야 합니다: 5분 이내 데이터 가용성, 99.9% 시스템 가용성, 확장 가능한 스토리지, 유연한 대시보드",
+            "데이터 수집 계층, 처리 파이프라인, 저장소 아키텍처, 분석 및 시각화 계층, 배치와 실시간 처리 통합 방법을 포함해주세요"
+        ])
+        
+    elif "클라우드 마이그레이션" in topic:
+        builder.add_role(
+            "클라우드 아키텍트", 
+            "레거시 시스템의 클라우드 마이그레이션 전문가로, 최소한의 중단과 위험으로 온프레미스 애플리케이션을 클라우드 환경으로 이전하는 전략과 아키텍처 설계에 깊은 경험을 갖고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 금융 서비스 회사의 IT 책임자로, 20년 된 온프레미스 핵심 뱅킹 시스템을 클라우드로 마이그레이션하는 프로젝트를 담당하고 있습니다. "
+            f"현재 시스템은 모놀리식 Java 애플리케이션으로 Oracle 데이터베이스를 사용합니다. "
+            f"일일 트랜잭션은 약 백만 건이며, 99.99% 이상의 가용성이 요구됩니다. "
+            f"점진적 마이그레이션이 필요하며, 규제 준수와 보안이 핵심 우선순위입니다."
+        )
+        
+        builder.add_instructions([
+            "레거시 시스템의 클라우드 마이그레이션 아키텍처를 설계해주세요",
+            "다음 현재 환경을 고려해주세요: Java 모놀리식 애플리케이션, Oracle DB, 자체 인증 시스템, 메인프레임 연동",
+            "다음 클라우드 옵션을 고려 중입니다: AWS/Azure, 컨테이너화, 마이크로서비스 전환, 관리형 데이터베이스",
+            "다음 요구사항을 충족해야 합니다: 최소 다운타임, 점진적 마이그레이션, 규제 준수, 보안 강화, 성능 개선",
+            "마이그레이션 전략, 아키텍처 변환 계획, 데이터 마이그레이션 접근법, 보안 아키텍처, 단계별 구현 계획을 포함해주세요"
+        ])
+        
+    elif "IoT 플랫폼" in topic:
+        builder.add_role(
+            "IoT 솔루션 아키텍트", 
+            "대규모 IoT 시스템 설계 전문가로, 센서 네트워크에서 클라우드 백엔드까지 확장 가능하고 안정적인 IoT 데이터 처리 플랫폼 구축에 깊은 경험을 갖고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 스마트 시티 프로젝트의 기술 책임자로, 도시 전체에 배치된 수천 개의 센서에서 데이터를 수집하고 처리하는 IoT 플랫폼을 구축하려고 합니다. "
+            f"센서는 교통 흐름, 대기 품질, 에너지 사용량, 소음 수준 등 다양한 데이터를 측정합니다. "
+            f"데이터는 실시간으로 처리되어 도시 관리자에게 인사이트를 제공하고, 일부 자동화된 시스템을 제어하는 데 사용됩니다. "
+            f"향후 수년간 센서 수가 10배 이상 증가할 것으로 예상됩니다."
+        )
+        
+        builder.add_instructions([
+            "확장 가능한 IoT 데이터 수집 및 처리 플랫폼 아키텍처를 설계해주세요",
+            "다음 요구사항을 고려해주세요: 다양한 센서 유형, 실시간 데이터 처리, 대용량 데이터 저장, 분석 대시보드, 알림 시스템",
+            "다음 기술 스택을 고려 중입니다: MQTT, Kafka, Spark/Flink, Time Series DB, Kubernetes, 클라우드 서비스",
+            "다음 비기능적 요구사항을 충족해야 합니다: 높은 확장성, 낮은 지연 시간, 센서 연결 간헐성 처리, 보안, 비용 효율성",
+            "엣지 처리 전략, 데이터 수집 및 전송 계층, 처리 및 분석 계층, 저장 전략, 보안 아키텍처, 확장성 전략을 포함해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "소프트웨어 아키텍트", 
+            "다양한 도메인과 기술 스택에 걸쳐 확장 가능하고 유지보수하기 쉬운 소프트웨어 시스템을 설계하는 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 {topic}에 관심이 있는 개발자입니다. "
+            f"확장성과 유지보수성이 뛰어난 시스템 아키텍처를 설계하고 싶습니다. "
+            f"현재 프로젝트를 시작하는 단계로, 체계적인 아키텍처 설계가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}에 대한 아키텍처를 설계해주세요",
+            "주요 기능 요구사항과 이를 지원하기 위한 컴포넌트 구조를 제안해주세요",
+            "적절한 기술 스택과 그 선택 이유를 설명해주세요",
+            "확장성, 유지보수성, 보안성 등 주요 품질 속성을 어떻게 확보할지 설명해주세요",
+            "아키텍처 다이어그램, 주요 컴포넌트 설명, 데이터 흐름, 배포 전략을 포함해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"아키텍처 다이어그램은 ASCII 다이어그램이나 텍스트 설명으로 표현해주세요. "
+        f"주요 컴포넌트와 그 관계를 명확히 설명하고, 핵심 결정 사항과 그 이유를 포함해주세요. "
+        f"확장성, 보안, 유지보수성 등 주요 품질 속성을 어떻게 확보했는지 설명해주세요. "
+        f"현실적이고 구현 가능한 아키텍처를 제시하되, 대학생이나 초급 개발자도 이해할 수 있도록 명확하게 설명해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Architecture_design")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="아키텍처 설계 지원 요청법",
+        topic_options=ARCHITECTURE_DESIGN_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

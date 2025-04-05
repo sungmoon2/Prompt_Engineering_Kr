@@ -1,7 +1,7 @@
 """
-Documentation_practices 실습 모듈
+코드 리뷰 및 최적화 템플릿 실습 모듈
 
-Part 5 - 섹션 5.4.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.4.3 실습 코드: AI를 활용한 코드 리뷰와 최적화 전략을 학습합니다.
 """
 
 import os
@@ -9,42 +9,202 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_documentation_practices_prompt, get_enhanced_documentation_practices_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+CODE_REVIEW_TOPICS = {
+    "1": {"name": "종합 코드 리뷰", "topic": "효과적인 종합 코드 리뷰 템플릿과 전략", "output_format": "리뷰 가이드"},
+    "2": {"name": "성능 최적화", "topic": "코드 성능 최적화 템플릿 및 단계별 접근법", "output_format": "최적화 가이드"},
+    "3": {"name": "보안 코드 리뷰", "topic": "보안 중심 코드 리뷰 템플릿과 체크리스트", "output_format": "보안 리뷰 가이드"},
+    "4": {"name": "확장성 리뷰", "topic": "코드 확장성 및 유지보수성 평가 템플릿", "output_format": "아키텍처 리뷰 문서"},
+    "5": {"name": "리뷰 자동화", "topic": "개발 워크플로우에 AI 코드 리뷰 통합 전략", "output_format": "자동화 계획"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["코드 리뷰나 최적화에 대한 일반적 정보 요청"],
+    "enhanced": [
+        "리뷰 범위 명확화: 특정 코드 측면에 초점", 
+        "세부 템플릿 요청: 구체적인 리뷰 템플릿과 프로세스 제안",
+        "언어/도메인 맞춤화: 특정 기술 스택에 최적화된 접근법", 
+        "실용적 사례 요청: 적용 가능한 예시와 워크플로우 통합 방법"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "체계적인 코드 리뷰 템플릿을 사용하면 리뷰의 일관성과 품질을 높일 수 있습니다",
+    "코드 리뷰는 단순한 버그 찾기를 넘어 설계, 성능, 보안 등 다양한 측면을 포함해야 합니다",
+    "성능 최적화는 반드시 프로파일링을 통한 병목 지점 식별부터 시작해야 합니다",
+    "언어와 도메인에 특화된 리뷰 템플릿을 사용하면 더 효과적인 피드백을 얻을 수 있습니다",
+    "AI를 활용한 코드 리뷰를 개발 워크플로우에 통합하면 지속적인 코드 품질 향상이 가능합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "종합 코드 리뷰" in topic:
+        builder.add_role(
+            "코드 리뷰 전문가", 
+            "다양한 프로그래밍 언어와 프로젝트 유형에 대한 체계적인 코드 리뷰 방법론에 깊은 이해를 가진 전문가로, 효과적인 코드 리뷰 프로세스와 템플릿 설계에 전문성을 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 중소 규모의 개발팀에서 코드 리뷰 프로세스를 개선하려는 시니어 개발자입니다. "
+            f"현재 코드 리뷰가 개발자 마다 일관성 없이 진행되고 있어 체계적인 접근법을 도입하고자 합니다. "
+            f"코드 품질, 성능, 보안 등 다양한 측면을 포괄하는 종합적인 코드 리뷰 템플릿과 전략이 필요합니다. "
+            f"Python, JavaScript, Java를 주로 사용하는 팀이며, AI를 활용한 코드 리뷰 자동화에도 관심이 있습니다."
+        )
+        
+        builder.add_instructions([
+            "효과적인 종합 코드 리뷰 템플릿과 전략을 설계해주세요",
+            "코드 품질, 성능, 보안, 확장성 등 다양한 측면을 포괄하는 체계적인 리뷰 템플릿을 제공해주세요",
+            "Python, JavaScript, Java에 특화된 리뷰 포인트와 모범 사례를 포함해주세요",
+            "리뷰어와 개발자 간 효과적인 커뮤니케이션을 위한 피드백 형식과 표현 방법을 제안해주세요",
+            "코드 리뷰 프로세스를 개발 워크플로우에 통합하는 방법과 AI를 활용한 자동화 전략도 포함해주세요"
+        ])
+        
+    elif "성능 최적화" in topic:
+        builder.add_role(
+            "성능 최적화 전문가", 
+            "다양한 프로그래밍 언어와 환경에서의 코드 성능 최적화에 깊은 전문성을 가진 전문가로, 체계적인 성능 분석과 최적화 전략 수립 및 구현에 풍부한 경험을 보유하고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 성능 이슈가 있는 백엔드 서비스를 최적화하려는 개발자입니다. "
+            f"특히 데이터 처리 및 API 응답 시간이 느려 사용자 경험에 영향을 미치고 있습니다. "
+            f"코드 성능 문제를 체계적으로 분석하고 단계별로 최적화하는 접근법이 필요합니다. "
+            f"Python과 Node.js 기반의 서비스이며, 데이터베이스 쿼리 최적화와 알고리즘 개선에 "
+            f"특히 관심이 있습니다."
+        )
+        
+        builder.add_instructions([
+            "코드 성능 최적화 템플릿 및 단계별 접근법을 설계해주세요",
+            "성능 프로파일링, 병목 지점 식별, 최적화 전략 수립, 구현, 검증을 포함한 체계적인 접근법을 제안해주세요",
+            "Python과 Node.js에 특화된 성능 최적화 기법과 도구를 포함해주세요",
+            "데이터베이스 쿼리, 알고리즘, 메모리 사용, 비동기 처리 등 주요 최적화 영역별 템플릿을 제공해주세요",
+            "성능 최적화 과정에서 AI를 활용하는 방법과 최적화 결과를 측정하고 검증하는 방법도 포함해주세요"
+        ])
+        
+    elif "보안 코드 리뷰" in topic:
+        builder.add_role(
+            "보안 코드 리뷰 전문가", 
+            "다양한 프로그래밍 언어와 환경에서의 보안 취약점 식별 및 개선에 깊은 전문성을 가진 전문가로, OWASP Top 10 등 주요 보안 표준과 최신 보안 위협에 대한 풍부한 지식을 보유하고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 금융 서비스 애플리케이션의 보안을 강화하기 위해 보안 중심 코드 리뷰 프로세스를 "
+            f"구축하려는 보안 책임자입니다. 사용자 인증, 결제 처리, 개인정보 관리 등 민감한 기능이 "
+            f"많아 체계적인 보안 코드 리뷰가 필수적입니다. Java 백엔드와 React 프론트엔드로 "
+            f"구성된 애플리케이션이며, 개발 초기 단계부터 보안을 고려한 접근법을 도입하고자 합니다."
+        )
+        
+        builder.add_instructions([
+            "보안 중심 코드 리뷰 템플릿과 체크리스트를 설계해주세요",
+            "인증/인가, 입력 검증, 데이터 보호, 세션 관리, API 보안 등 주요 보안 영역별 리뷰 가이드를 제공해주세요",
+            "Java 백엔드와 React 프론트엔드에 특화된 보안 취약점 및 모범 사례를 포함해주세요",
+            "OWASP Top 10 및 기타 보안 표준에 기반한 체계적인 체크리스트를 개발해주세요",
+            "개발 생명주기 전반에 보안 코드 리뷰를 통합하는 방법과 자동화 도구 활용 전략도 포함해주세요"
+        ])
+        
+    elif "확장성 리뷰" in topic:
+        builder.add_role(
+            "소프트웨어 아키텍처 전문가", 
+            "확장 가능하고 유지보수하기 쉬운 소프트웨어 아키텍처 설계와 평가에 깊은 전문성을 가진 전문가로, 다양한 규모의 시스템 아키텍처 리뷰와 개선에 풍부한 경험을 보유하고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 빠르게 성장하는 스타트업의 기술 책임자로, 현재 코드베이스의 확장성과 유지보수성을 "
+            f"평가하고 개선하려고 합니다. 초기에는 빠른 개발에 중점을 두었지만, 이제 사용자가 늘고 "
+            f"기능이 확장됨에 따라 아키텍처 수준의 개선이 필요합니다. 마이크로서비스 아키텍처로의 "
+            f"전환을 고려 중이며, 코드 확장성 평가를 위한 체계적인 접근법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "코드 확장성 및 유지보수성 평가 템플릿을 설계해주세요",
+            "모듈성, 결합도, 응집도, 의존성 관리 등 아키텍처 품질 측면에서의 평가 기준을 제공해주세요",
+            "확장성 평가를 위한 시나리오 기반 접근법과 체크리스트를 개발해주세요",
+            "모놀리식에서 마이크로서비스로의 전환을 고려한 아키텍처 평가 특화 지침을 포함해주세요",
+            "장기적인 아키텍처 개선을 위한 로드맵 수립 방법과 점진적 개선 전략도 제안해주세요"
+        ])
+        
+    elif "리뷰 자동화" in topic:
+        builder.add_role(
+            "개발 자동화 전문가", 
+            "CI/CD 파이프라인과 개발 워크플로우에 코드 품질 도구와 자동화된 리뷰 프로세스를 통합하는 데 깊은 전문성을 가진 전문가로, AI를 활용한 코드 리뷰 자동화 전략에 풍부한 경험을 보유하고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 20명 규모의 개발팀에서 DevOps 엔지니어로 일하고 있으며, 코드 리뷰 프로세스를 "
+            f"자동화하여 개발 생산성과 코드 품질을 향상시키려고 합니다. 현재는 Pull Request 시 "
+            f"수동 리뷰에 의존하고 있어 병목 현상이 발생하고 있습니다. GitHub Actions 기반의 "
+            f"CI/CD 파이프라인을 사용 중이며, AI 도구를 활용하여 자동화된 코드 리뷰를 "
+            f"통합하고자 합니다."
+        )
+        
+        builder.add_instructions([
+            "개발 워크플로우에 AI 코드 리뷰를 통합하는 전략을 설계해주세요",
+            "GitHub Actions와 같은 CI/CD 파이프라인에 코드 리뷰 자동화를 통합하는 구체적인 방법을 제안해주세요",
+            "자동화된 코드 리뷰와 수동 리뷰의 균형을 유지하는 전략을 설명해주세요",
+            "다양한 AI 코드 리뷰 도구의 비교와 장단점, 그리고 최적의 도구 선택 가이드를 제공해주세요",
+            "자동화된 리뷰 결과를 개발자 피드백으로 변환하고 지속적인 개선 문화를 구축하는 방법도 포함해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "코드 품질 전문가", 
+            "다양한 소프트웨어 개발 환경에서의 코드 품질 향상 및 최적화 전략에 깊은 전문성을 가진 전문가로, 효과적인 코드 리뷰 프로세스와 성능 최적화 방법론에 풍부한 경험을 보유하고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 {topic}에 관심이 있는 개발자입니다. "
+            f"코드 품질을 향상시키고 성능을 최적화하기 위한 체계적인 접근법과 "
+            f"템플릿을 찾고 있습니다. AI를 활용하여 코드 리뷰와 최적화 과정을 "
+            f"효율화하는 방법에도 관심이 있습니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}에 대한 포괄적인 가이드를 제공해주세요",
+            "효과적인 코드 리뷰와 최적화를 위한 템플릿과 체크리스트를 설계해주세요",
+            "다양한 프로그래밍 언어와 환경에 적용할 수 있는 범용적인 접근법을 제안해주세요",
+            "AI를 활용한 코드 리뷰 및 최적화 전략을 포함해주세요",
+            "실제 개발 워크플로우에 이러한 과정을 통합하는 방법과 모범 사례를 설명해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"프로그래밍 언어별 샘플 코드와 예시를 포함하여 실용적인 가이드를 제공해주세요. "
+        f"코드 리뷰/최적화 템플릿과 체크리스트를 명확한 형식으로 제시해주세요. "
+        f"워크플로우 통합 방법과 자동화 전략에 대한 구체적인 단계도 포함해주세요. "
+        f"개발자가 바로 적용할 수 있는 실용적인 팁과 모범 사례를 강조해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Documentation_practices")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="코드 리뷰 및 최적화 템플릿",
+        topic_options=CODE_REVIEW_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

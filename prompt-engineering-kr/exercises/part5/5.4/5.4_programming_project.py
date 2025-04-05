@@ -1,7 +1,7 @@
 """
-Programming_project 실습 모듈
+프로그래밍 프로젝트 개발 실습 모듈
 
-Part 5 - 섹션 5.4 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.4 실습 코드: 프로그래밍 프로젝트의 전체 개발 주기에서 AI 활용법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,206 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_programming_project_prompt, get_enhanced_programming_project_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+PROJECT_DEVELOPMENT_TOPICS = {
+    "1": {"name": "웹 대시보드 개발", "topic": "데이터 시각화 웹 대시보드 개발 계획", "output_format": "프로젝트 계획서"},
+    "2": {"name": "모바일 앱 설계", "topic": "핀테크 모바일 앱 설계 및 개발 접근법", "output_format": "개발 로드맵"},
+    "3": {"name": "API 백엔드 구축", "topic": "확장 가능한 RESTful API 백엔드 개발 프로세스", "output_format": "기술 명세서"},
+    "4": {"name": "데이터 분석 파이프라인", "topic": "자동화된 데이터 수집 및 분석 파이프라인 구축", "output_format": "구현 계획"},
+    "5": {"name": "IoT 모니터링 시스템", "topic": "IoT 장치 모니터링 및 관리 시스템 개발", "output_format": "프로젝트 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["프로젝트 개발에 대한 일반적 안내 요청"],
+    "enhanced": [
+        "개발 단계 구분: 요구사항부터 배포까지 체계적 접근",
+        "상세 컨텍스트: 프로젝트 목적과 환경 명확화",
+        "구체적 제약조건: 기술 스택과 요구사항 상세화", 
+        "단계별 지침: 개발 단계별 구체적 접근법 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "프로그래밍 프로젝트를 체계적 단계로 분해하면 복잡성을 효과적으로 관리할 수 있습니다",
+    "요구사항 분석부터 배포까지 전체 개발 주기에 AI를 활용할 수 있습니다",
+    "프롬프트 체인을 구성하여 복잡한 개발 과정을 단계적으로 진행할 수 있습니다",
+    "각 개발 단계별로 특화된 프롬프트 전략을 적용하면 더 효과적인 결과를 얻을 수 있습니다",
+    "디버깅과 코드 최적화에 AI를 활용하면 개발 효율성을 크게 높일 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "데이터 시각화 웹 대시보드" in topic:
+        builder.add_role(
+            "풀스택 개발 프로젝트 매니저", 
+            "데이터 시각화 및 분석 웹 애플리케이션 개발 전문가로, 요구사항 분석부터 배포까지 전체 개발 주기를 관리한 풍부한 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 마케팅 데이터를 시각화하는 대시보드 웹 애플리케이션을 개발하려는 프로젝트 책임자입니다. "
+            f"이 대시보드는 다양한 마케팅 채널(소셜 미디어, 이메일, 광고 등)의 성과 데이터를 통합하여 "
+            f"실시간 지표와 트렌드를 시각적으로 표시해야 합니다. 주요 사용자는 마케팅 매니저와 경영진이며, "
+            f"데이터 기반 의사결정을 지원하는 것이 목표입니다. 프론트엔드는 React, 백엔드는 Node.js를 "
+            f"사용할 예정이며, 데이터는 REST API를 통해 가져올 계획입니다."
+        )
+        
+        builder.add_instructions([
+            "데이터 시각화 웹 대시보드 개발을 위한 포괄적인 계획을 수립해주세요",
+            "요구사항 분석, 설계, 구현, 테스트, 배포 등 전체 개발 주기를 단계별로 설명해주세요",
+            "각 단계에서 필요한 작업, 고려사항, AI 활용 전략을 상세히 기술해주세요",
+            "React(프론트엔드), Node.js(백엔드), 차트 라이브러리를 활용한 기술적 접근법을 제안해주세요",
+            "개발 과정에서 발생할 수 있는 주요 도전 과제와 해결 전략도 포함해주세요"
+        ])
+        
+    elif "핀테크 모바일 앱" in topic:
+        builder.add_role(
+            "모바일 앱 개발 전문가", 
+            "핀테크 및 금융 관련 모바일 애플리케이션 개발 전문가로, 사용자 경험, 보안, 확장성을 고려한 모바일 앱 아키텍처 설계와 개발에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 개인 재정 관리를 위한 핀테크 모바일 앱을 개발하려는 스타트업의 기술 책임자입니다. "
+            f"이 앱은 사용자의 금융 계좌를 연동하여 지출을 추적하고, 예산을 관리하며, 재정 목표 달성을 "
+            f"지원하는 기능을 제공해야 합니다. 주요 차별점은 AI 기반 개인화된 재정 조언과 사용자 친화적인 "
+            f"인터페이스입니다. 보안과 사용자 데이터 보호가 매우 중요하며, Flutter를 사용하여 "
+            f"크로스 플랫폼(iOS, Android) 앱을 개발할 예정입니다."
+        )
+        
+        builder.add_instructions([
+            "핀테크 모바일 앱 설계 및 개발을 위한 체계적인 접근법을 제안해주세요",
+            "요구사항 분석부터 배포까지 전체 개발 프로세스를 단계별로 설명해주세요",
+            "Flutter를 활용한 크로스 플랫폼 개발 전략과 금융 API 통합 방안을 포함해주세요",
+            "보안, 데이터 프라이버시, 규제 준수를 위한 설계 고려사항을 상세히 설명해주세요",
+            "개발 과정에서 AI를 활용하는 전략과 함께, 각 개발 단계별 주요 도전 과제와 해결책을 제시해주세요"
+        ])
+        
+    elif "RESTful API 백엔드" in topic:
+        builder.add_role(
+            "백엔드 아키텍트", 
+            "확장 가능하고 안정적인 API 백엔드 시스템 설계 전문가로, 고성능 분산 시스템 아키텍처, 데이터베이스 설계, 보안 및 인증 메커니즘에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 빠르게 성장하는 e-커머스 플랫폼을 위한 RESTful API 백엔드를 개발하는 프로젝트를 담당하고 있습니다. "
+            f"이 API는 제품 카탈로그, 장바구니, 주문 처리, 사용자 관리, 결제 통합 등의 기능을 제공해야 합니다. "
+            f"현재 사용자는 월 5만 명 수준이지만, 1년 내에 50만 명 이상으로 증가할 것으로 예상됩니다. "
+            f"따라서 확장성, 성능, 보안이 매우 중요합니다. Node.js와 Express를 기반으로 개발할 예정이며, "
+            f"MongoDB를 주 데이터베이스로 사용할 계획입니다."
+        )
+        
+        builder.add_instructions([
+            "확장 가능한 RESTful API 백엔드 개발을 위한 체계적인 프로세스를 설계해주세요",
+            "요구사항 분석부터 설계, 구현, 테스트, 배포, 모니터링까지 전체 개발 주기를 단계별로 설명해주세요",
+            "Node.js, Express, MongoDB를 활용한 기술적 아키텍처와 설계 패턴을 제안해주세요",
+            "API 설계 원칙, 보안 전략, 성능 최적화, 확장성 확보 방안을 상세히 설명해주세요",
+            "각 개발 단계에서 AI를 활용하는 방법과 자동화 전략도 포함해주세요"
+        ])
+        
+    elif "데이터 수집 및 분석 파이프라인" in topic:
+        builder.add_role(
+            "데이터 엔지니어링 전문가", 
+            "자동화된 데이터 파이프라인 설계 및 구축 전문가로, 다양한 데이터 소스의 수집, 처리, 저장, 분석을 위한 시스템 아키텍처 개발에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 소셜 미디어 분석 회사에서 다양한 소셜 플랫폼(Twitter, Facebook, Instagram 등)의 "
+            f"데이터를 수집, 처리, 분석하는 자동화된 파이프라인을 구축하려고 합니다. "
+            f"이 파이프라인은 대량의 소셜 데이터를 실시간으로 수집하고, 감성 분석, 주제 모델링, "
+            f"영향력 분석 등을 수행하여 비즈니스 인사이트를 제공해야 합니다. "
+            f"Python을 주 언어로 사용하고, Apache Airflow로 워크플로우를 관리하며, "
+            f"AWS 서비스(S3, Lambda, EMR 등)를 활용할 계획입니다."
+        )
+        
+        builder.add_instructions([
+            "자동화된 데이터 수집 및 분석 파이프라인 구축을 위한 종합적인 계획을 수립해주세요",
+            "데이터 수집, 처리, 저장, 분석, 시각화 등 전체 파이프라인 구성 요소를 단계별로 설명해주세요",
+            "Python, Apache Airflow, AWS 서비스를 활용한 기술적 아키텍처와 구현 방법을 제안해주세요",
+            "대용량 데이터 처리, 실시간 분석, 확장성 확보를 위한 전략을 상세히 설명해주세요",
+            "각 구축 단계에서 AI를 활용한 개발 전략과 자동화 방안을 포함해주세요"
+        ])
+        
+    elif "IoT 장치 모니터링" in topic:
+        builder.add_role(
+            "IoT 시스템 아키텍트", 
+            "IoT 장치 모니터링 및 관리 시스템 설계 전문가로, 센서 네트워크, 데이터 수집, 실시간 분석, 원격 제어 기능을 갖춘 IoT 플랫폼 개발에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 스마트 빌딩 관리 시스템을 개발하는 회사의 기술 책임자입니다. "
+            f"건물 내 다양한 IoT 센서(온도, 습도, 전력 사용량, 재실 감지 등)를 모니터링하고 "
+            f"관리하는 시스템을 구축하려고 합니다. 이 시스템은 센서 데이터를 실시간으로 수집하고 "
+            f"분석하여 에너지 사용 최적화, 예방적 유지보수, 보안 관리 등을 지원해야 합니다. "
+            f"또한 사용자 친화적인 대시보드와 모바일 앱을 통해 원격 모니터링 및 제어 기능을 제공해야 합니다. "
+            f"Python, MQTT, Node.js, React를 주요 기술 스택으로 사용할 계획입니다."
+        )
+        
+        builder.add_instructions([
+            "IoT 장치 모니터링 및 관리 시스템 개발을 위한 포괄적인 가이드를 작성해주세요",
+            "요구사항 분석부터 설계, 구현, 테스트, 배포까지 전체 개발 프로세스를 단계별로 설명해주세요",
+            "센서 데이터 수집, 처리, 저장, 분석, 시각화, 원격 제어 기능을 위한 기술적 아키텍처를 제안해주세요",
+            "확장성, 보안, 실시간 성능, 장치 관리를 위한 설계 고려사항을 상세히 설명해주세요",
+            "각 개발 단계에서 AI를 활용하는 방법과 도전 과제 해결 전략을 포함해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "소프트웨어 개발 프로젝트 매니저", 
+            "다양한 유형의 소프트웨어 개발 프로젝트를 성공적으로 이끈 경험이 풍부한 전문가로, 요구사항 분석부터 배포까지 체계적인 개발 프로세스 관리에 전문성을 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 {topic}에 관심이 있는 개발자입니다. "
+            f"이 프로젝트를 체계적으로 진행하기 위한 전체 개발 프로세스와 단계별 접근법, "
+            f"그리고 각 단계에서 AI를 효과적으로 활용하는 방법을 알고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}을 위한 체계적인 개발 프로세스를 설계해주세요",
+            "요구사항 분석부터 배포 및 유지보수까지 전체 개발 주기를 단계별로 설명해주세요",
+            "각 단계에서 중요한 활동, 산출물, 고려사항을 상세히 기술해주세요",
+            "개발 과정에서 AI를 효과적으로 활용하는 전략과 프롬프트 예시를 제공해주세요",
+            "주요 도전 과제와 해결 전략도 포함해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"개발 프로세스를 단계별로 체계적으로 구성하고, 각 단계에서 AI를 활용하는 방법과 프롬프트 예시를 포함해주세요. "
+        f"실제 개발 상황에서 참고할 수 있도록 구체적이고 실용적인 내용으로 작성해주세요. "
+        f"주요 개발 단계, 기술적 고려사항, 도전 과제 및 해결책을 명확하게 설명해주세요. "
+        f"가능한 경우 단계별 체크리스트나 템플릿 형태로 정리하여 실제 개발에 바로 적용할 수 있게 해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Programming_project")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="프로그래밍 프로젝트 개발",
+        topic_options=PROJECT_DEVELOPMENT_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

@@ -1,7 +1,7 @@
 """
-Optimization_strategies 실습 모듈
+코드 품질과 성능 개선 실습 모듈
 
-Part 5 - 섹션 5.2.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.2.2 실습 코드: 프로그램 코드의 품질과 성능을 개선하기 위한 프롬프트 작성법을 실습합니다.
 """
 
 import os
@@ -9,42 +9,193 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_optimization_strategies_prompt, get_enhanced_optimization_strategies_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+CODE_OPTIMIZATION_TOPICS = {
+    "1": {"name": "알고리즘 최적화", "topic": "알고리즘 성능 최적화를 위한 프롬프트 작성", "output_format": "최적화 가이드"},
+    "2": {"name": "코드 가독성 개선", "topic": "코드 가독성과 유지보수성 향상을 위한 프롬프트 작성", "output_format": "개선 사례"},
+    "3": {"name": "메모리 사용 최적화", "topic": "메모리 효율성 향상을 위한 코드 최적화 프롬프트", "output_format": "최적화 전략"},
+    "4": {"name": "코드 리팩토링", "topic": "복잡한 코드 리팩토링을 위한 프롬프트 작성", "output_format": "리팩토링 가이드"},
+    "5": {"name": "언어별 최적화", "topic": "프로그래밍 언어별 최적화 프롬프트 작성", "output_format": "언어별 최적화 템플릿"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["코드 최적화에 대한 일반적인 질문"],
+    "enhanced": [
+        "명확한 목표 설정: 개선하려는 구체적인 품질/성능 측면 명시",
+        "코드 맥락 제공: 기존 코드와 문제점, 사용 환경에 대한 상세 정보 제공",
+        "우선순위 지정: 가독성, 성능, 유지보수성 등 개선 우선순위 명확화",
+        "언어 특화 요청: 프로그래밍 언어별 최적화 기법 구체적 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "코드 개선 요청 시 구체적인 문제점과 개선 목표를 명확하게 전달하는 것이 중요합니다",
+    "성능, 가독성, 유지보수성 간의 균형을 고려한 개선 요청이 효과적입니다",
+    "언어별 특성과 모범 사례를 고려한 맞춤형 프롬프트가 더 나은 결과를 가져옵니다",
+    "실제 사용 맥락과 제약 조건을 함께 제공하면 더 실용적인 최적화 결과를 얻을 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별로 다른 역할과 맥락 설정
+    if "알고리즘 최적화" in topic:
+        builder.add_role(
+            "알고리즘 최적화 전문가", 
+            "복잡한 알고리즘의 시간 및 공간 복잡도를 분석하고 최적화하는 전문가로, 효율적인 데이터 구조 선택과 알고리즘 설계에 깊은 전문성을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 프로그래밍 과제에서 {topic}에 어려움을 겪고 있는 컴퓨터 공학 전공 학생입니다. "
+            f"알고리즘의 실행 시간이 너무 오래 걸리거나 대용량 데이터를 처리할 때 성능 문제가 발생합니다. "
+            f"효율적인 알고리즘 설계와 최적화를 위한 프롬프트 작성법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "알고리즘 성능 최적화를 위한 효과적인 프롬프트 작성 방법을 설명해주세요",
+            "시간 복잡도와 공간 복잡도를 명확히 전달하는 프롬프트 템플릿을 제공해주세요",
+            "알고리즘 유형별(정렬, 검색, 그래프 등) 최적화 요청 예시를 포함해주세요",
+            "프롬프트에 포함해야 할 핵심 정보와 맥락을 설명해주세요",
+            "알고리즘 최적화 요청 시 흔히 범하는 실수와 피해야 할 점도 알려주세요"
+        ])
+        
+    elif "코드 가독성" in topic:
+        builder.add_role(
+            "코드 품질 개선 전문가", 
+            "코드 가독성, 유지보수성, 확장성을 향상시키는 전문가로, 클린 코드 원칙과 모범 사례를 적용하여 코드 품질을 개선하는 데 전문성을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 팀 프로젝트에서 {topic}에 관심 있는 개발자입니다. "
+            f"기능은 정상적으로 작동하지만 코드가 복잡하고 이해하기 어려워 유지보수에 어려움을 겪고 있습니다. "
+            f"가독성과 유지보수성을 향상시키기 위한 효과적인 프롬프트 작성법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "코드 가독성 개선을 위한 효과적인 프롬프트 작성 방법을 설명해주세요",
+            "코드 구조, 네이밍 컨벤션, 주석 등 가독성 측면을 포함한 프롬프트 템플릿을 제공해주세요",
+            "실제 코드 예시를 통해 Before/After 형태의 가독성 개선 프롬프트 사례를 보여주세요",
+            "프롬프트에 포함해야 할 코드의 맥락과 목적에 대한 설명 방법을 알려주세요",
+            "언어별 코딩 스타일 가이드를 요청하는 방법도 포함해주세요"
+        ])
+        
+    elif "메모리 사용" in topic:
+        builder.add_role(
+            "메모리 최적화 전문가", 
+            "프로그램의 메모리 사용량을 분석하고 최적화하는 전문가로, 효율적인 데이터 구조 선택과 메모리 관리 기법에 깊은 지식을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 제한된 리소스 환경에서 실행되는 애플리케이션을 개발 중이며, {topic}에 관심이 있습니다. "
+            f"프로그램이 메모리를 과도하게 사용하여 성능 저하나 메모리 부족 오류가 발생합니다. "
+            f"메모리 사용량을 최적화하기 위한 효과적인 프롬프트 작성법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "메모리 사용 최적화를 위한 효과적인 프롬프트 작성 방법을 설명해주세요",
+            "메모리 프로파일링 결과를 효과적으로 전달하는 프롬프트 템플릿을 제공해주세요",
+            "데이터 구조 선택, 리소스 관리, 메모리 누수 방지 등 주요 최적화 영역별 요청 방법을 설명해주세요",
+            "다양한 프로그래밍 언어에서의 메모리 최적화 요청 예시를 포함해주세요",
+            "프롬프트에 포함해야 할 시스템 제약 조건과 성능 요구사항 명시 방법을 알려주세요"
+        ])
+        
+    elif "코드 리팩토링" in topic:
+        builder.add_role(
+            "코드 리팩토링 전문가", 
+            "복잡하고 레거시한 코드를 분석하고 개선하는 전문가로, 디자인 패턴, 코드 구조화, 기술 부채 해결에 깊은 경험을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 레거시 시스템을 유지보수하는 개발자로, {topic}에 어려움을 겪고 있습니다. "
+            f"오래된 코드베이스가 구조적으로 복잡하고 일관성이 없어 수정과 확장이 어렵습니다. "
+            f"효과적인 코드 리팩토링을 위한 프롬프트 작성법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "복잡한 코드 리팩토링을 위한 효과적인 프롬프트 작성 방법을 설명해주세요",
+            "코드의 문제점과 리팩토링 목표를 명확히 전달하는 프롬프트 템플릿을 제공해주세요",
+            "단계적 리팩토링 접근법을 요청하는 프롬프트 예시를 포함해주세요",
+            "코드 스멜 식별과 디자인 패턴 적용을 요청하는 방법을 설명해주세요",
+            "리팩토링 시 기능 보존을 보장하기 위한 요청 사항도 포함해주세요"
+        ])
+        
+    elif "언어별 최적화" in topic:
+        builder.add_role(
+            "언어 최적화 전문가", 
+            "다양한 프로그래밍 언어의 특성과 최적화 기법에 정통한 전문가로, 언어별 모범 사례와 성능 최적화 패턴에 깊은 지식을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 여러 프로그래밍 언어로 개발하는 풀스택 개발자로, {topic}에 관심이 있습니다. "
+            f"각 언어의 특성을 최대한 활용하여 최적화된 코드를 작성하고 싶습니다. "
+            f"프로그래밍 언어별 최적화 요청을 위한 효과적인 프롬프트 작성법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "주요 프로그래밍 언어(Python, JavaScript, Java, C++, Go 등)별 최적화를 위한 프롬프트 작성법을 설명해주세요",
+            "각 언어의 특성과 모범 사례를 효과적으로 반영한 프롬프트 템플릿을 제공해주세요",
+            "언어별 성능 병목 현상과 최적화 기법을 요청하는 프롬프트 예시를 포함해주세요",
+            "프롬프트에 포함해야 할 언어 버전, 환경, 제약 조건 등의 정보를 설명해주세요",
+            "여러 언어를 비교하여 최적의 접근법을 요청하는 방법도 알려주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "코드 최적화 전문가", 
+            "다양한 측면에서 코드 품질과 성능을 분석하고 개선하는 전문가로, 알고리즘 최적화, 코드 구조화, 메모리 관리 등에 종합적인 전문성을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 소프트웨어 개발 역량을 향상시키고자 하는 프로그래머로, {topic}에 관심이 있습니다. "
+            f"효율적이고 유지보수 가능한 코드를 작성하기 위한 다양한 최적화 기법을 배우고 싶습니다. "
+            f"효과적인 코드 최적화 요청을 위한 프롬프트 작성법을 알고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "코드 품질과 성능 개선을 위한 효과적인 프롬프트 작성 방법을 종합적으로 설명해주세요",
+            "알고리즘 효율성, 코드 가독성, 메모리 사용 등 다양한 측면을 고려한 프롬프트 템플릿을 제공해주세요",
+            "최적화 목표와 제약 조건을 명확히 전달하는 방법을 설명해주세요",
+            "실제 코드 예시를 통한 Before/After 형태의 최적화 요청 사례를 보여주세요",
+            "코드 최적화 요청 시 흔히 범하는 실수와 피해야 할 점도 알려주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 코드 블록 등을 명확히 구분해주세요. "
+        f"실제 프롬프트 템플릿과 예시를 코드 블록으로 제시하고, 각 요소의 목적과 효과를 설명해주세요. "
+        f"가능한 Before/After 코드 예시를 통해 최적화 효과를 시각적으로 보여주세요. "
+        f"프롬프트 작성 시 고려해야 할 핵심 요소와 주의사항을 강조해주세요. "
+        f"실제 개발 상황에서 바로 적용할 수 있는 실용적인 팁과 예시를 중심으로 구성해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Optimization_strategies")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="코드 품질과 성능 개선 프롬프트",
+        topic_options=CODE_OPTIMIZATION_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

@@ -1,7 +1,7 @@
 """
-Modular_organization 실습 모듈
+모듈과 컴포넌트 구성 방법 실습 모듈
 
-Part 5 - 섹션 5.3.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.3.2 실습 코드: 효과적인 모듈 및 컴포넌트 설계 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,200 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_modular_organization_prompt, get_enhanced_modular_organization_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+MODULE_COMPONENT_TOPICS = {
+    "1": {"name": "사용자 관리 모듈", "topic": "웹 애플리케이션을 위한 사용자 관리 모듈 설계", "output_format": "모듈 설계서"},
+    "2": {"name": "결제 처리 모듈", "topic": "안전하고 확장 가능한 결제 처리 모듈 설계", "output_format": "컴포넌트 구조"},
+    "3": {"name": "데이터 처리 파이프라인", "topic": "모듈화된 데이터 처리 파이프라인 구성", "output_format": "모듈 아키텍처"},
+    "4": {"name": "UI 컴포넌트 라이브러리", "topic": "재사용 가능한 UI 컴포넌트 라이브러리 구조", "output_format": "컴포넌트 문서"},
+    "5": {"name": "API 게이트웨이 모듈", "topic": "마이크로서비스를 위한 모듈화된 API 게이트웨이", "output_format": "모듈 설계도"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["모듈 또는 컴포넌트 설계에 대한 일반적 요청"],
+    "enhanced": [
+        "시스템 컨텍스트: 전체 시스템에서 모듈의 역할 설명",
+        "상세 요구사항: 기능적/비기능적 모듈 요구사항 명시",
+        "인터페이스 정의: 외부와의 상호작용 방식 설명", 
+        "설계 원칙: 사용할 모듈화 패턴과 원칙 명시"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "효과적인 모듈화는 코드 재사용성, 유지보수성, 테스트 용이성을 높이는 핵심 요소입니다",
+    "단일 책임 원칙(SRP)을 따르면 모듈의 응집도를 높이고 결합도를 낮출 수 있습니다",
+    "명확한 인터페이스 설계는 모듈 간 의존성을 관리하는 핵심 전략입니다",
+    "모듈화 패턴(계층형, 기능 기반, 컴포넌트 기반)은 시스템 특성에 맞게 선택해야 합니다",
+    "AI를 활용하면 모듈 구조를 체계적으로 설계하고 일관된 컴포넌트 아키텍처를 만들 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}를 설계해주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "사용자 관리" in topic:
+        builder.add_role(
+            "소프트웨어 아키텍트", 
+            "모듈화된 소프트웨어 시스템 설계 전문가로, 확장 가능하고 유지보수하기 쉬운 모듈 아키텍처를 설계한 풍부한 경험을 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 중규모 웹 애플리케이션을 개발 중인 프로젝트 리더입니다. "
+            f"사용자 관리 기능(등록, 인증, 프로필 관리 등)을 담당할 모듈을 설계하려고 합니다. "
+            f"이 모듈은 다른 모듈들과 명확한 인터페이스를 통해 상호작용하며, "
+            f"향후 기능 확장과 유지보수가 용이해야 합니다."
+        )
+        
+        builder.add_instructions([
+            "웹 애플리케이션을 위한 사용자 관리 모듈을 설계해주세요",
+            "다음 기능을 포함해야 합니다: 사용자 등록/로그인, 비밀번호 관리, 프로필 관리, 권한 관리, 소셜 로그인 통합",
+            "다음 기술 스택을 사용할 예정입니다: Node.js, Express, MongoDB, JWT 인증",
+            "모듈의 내부 컴포넌트 구조, 외부 인터페이스(API), 데이터 모델, 의존성을 상세히 설계해주세요",
+            "단일 책임 원칙(SRP)과 관심사 분리 원칙을 준수하는 설계를 제안해주세요"
+        ])
+        
+    elif "결제 처리" in topic:
+        builder.add_role(
+            "결제 시스템 아키텍트", 
+            "안전하고 확장 가능한 결제 시스템 설계 전문가로, 다양한 결제 방식과 보안 요구사항을 고려한 모듈 아키텍처 설계에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 e-커머스 플랫폼의 결제 시스템을 개발하는 팀의 리더입니다. "
+            f"다양한 결제 방식(신용카드, 페이팔, 계좌이체 등)을 안전하게 처리하면서, "
+            f"새로운 결제 방식을 쉽게 추가할 수 있는 유연한 결제 처리 모듈이 필요합니다. "
+            f"보안과 트랜잭션 무결성이 매우 중요하며, 높은 트래픽에도 안정적으로 작동해야 합니다."
+        )
+        
+        builder.add_instructions([
+            "안전하고 확장 가능한 결제 처리 모듈을 설계해주세요",
+            "다음 결제 방식을 지원해야 합니다: 신용카드, 페이팔, 계좌이체, 기프트 카드, 아직 정의되지 않은 미래의 결제 방식",
+            "다음 요구사항을 충족해야 합니다: PCI DSS 준수, 트랜잭션 로깅, 결제 상태 추적, 환불 처리, 결제 실패 처리",
+            "새로운 결제 방식을 쉽게 추가할 수 있는 확장 가능한 아키텍처를 설계해주세요",
+            "모듈 내부 컴포넌트, 외부 인터페이스, 보안 메커니즘, 오류 처리 전략을 상세히 설명해주세요"
+        ])
+        
+    elif "데이터 처리 파이프라인" in topic:
+        builder.add_role(
+            "데이터 엔지니어링 아키텍트", 
+            "모듈화된 데이터 처리 시스템 설계 전문가로, 확장 가능하고 유지보수하기 쉬운 데이터 파이프라인 아키텍처 설계에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 다양한 소스에서 데이터를 수집, 변환, 저장하는 데이터 처리 파이프라인을 개발하는 데이터 엔지니어링 팀의 리더입니다. "
+            f"현재 파이프라인은 모놀리식 구조로 되어 있어 유지보수와 확장이 어렵습니다. "
+            f"개별 단계(수집, 검증, 변환, 저장, 분석)를 독립적인 모듈로 분리하여 "
+            f"더 유연하고 유지보수하기 쉬운 구조로 재설계하고자 합니다."
+        )
+        
+        builder.add_instructions([
+            "모듈화된 데이터 처리 파이프라인을 설계해주세요",
+            "다음 단계가 포함되어야 합니다: 데이터 수집, 검증, 변환, 저장, 분석",
+            "각 단계를 독립적인 모듈로 분리하고, 모듈 간 인터페이스와 데이터 흐름을 정의해주세요",
+            "파이썬과 Apache Airflow를 기반으로 한 기술 스택을 고려해주세요",
+            "배치 및 실시간 처리를 모두 지원하며, 새로운 데이터 소스와 처리 로직을 쉽게 추가할 수 있는 구조를 제안해주세요"
+        ])
+        
+    elif "UI 컴포넌트" in topic:
+        builder.add_role(
+            "프론트엔드 아키텍트", 
+            "재사용 가능한 UI 컴포넌트 라이브러리 설계 전문가로, 확장 가능하고 일관된 사용자 인터페이스 구축을 위한 컴포넌트 아키텍처 설계에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 복수의 웹 애플리케이션에서 사용할 UI 컴포넌트 라이브러리를 개발하는 프론트엔드 팀의 리더입니다. "
+            f"현재 각 프로젝트마다 중복된 UI 컴포넌트를 개발하고 있어 비효율적이며 일관성이 부족합니다. "
+            f"재사용 가능하고, 확장 가능하며, 일관된 디자인 시스템을 구현하는 "
+            f"UI 컴포넌트 라이브러리 구조를 설계하고자 합니다."
+        )
+        
+        builder.add_instructions([
+            "재사용 가능한 UI 컴포넌트 라이브러리 구조를 설계해주세요",
+            "다음 컴포넌트 유형을 포함해야 합니다: 기본 요소(버튼, 입력 필드 등), 복합 요소(폼, 테이블 등), 페이지 레이아웃, 내비게이션",
+            "React와 TypeScript를 기반으로 한 기술 스택을 고려해주세요",
+            "컴포넌트 계층 구조, 상태 관리, 스타일링 전략, 테마 지원, 접근성 고려사항을 포함해주세요",
+            "컴포넌트 문서화 및 개발자 경험을 향상시키는 전략도 제안해주세요"
+        ])
+        
+    elif "API 게이트웨이" in topic:
+        builder.add_role(
+            "마이크로서비스 아키텍트", 
+            "마이크로서비스 아키텍처와 API 게이트웨이 설계 전문가로, 확장 가능하고 안정적인 분산 시스템 구축에 깊은 경험을 가진 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 마이크로서비스 기반 시스템을 개발하는 백엔드 팀의 리더입니다. "
+            f"현재 여러 마이크로서비스에 직접 접근하는 구조로 인해 클라이언트 코드가 복잡해지고, "
+            f"인증/권한 부여, 로깅, 속도 제한 등의 공통 기능이 중복 구현되고 있습니다. "
+            f"이러한 문제를 해결하기 위해 모듈화된 API 게이트웨이를 설계하고자 합니다."
+        )
+        
+        builder.add_instructions([
+            "마이크로서비스를 위한 모듈화된 API 게이트웨이를 설계해주세요",
+            "다음 기능을 지원해야 합니다: 라우팅, 인증/권한 부여, 요청/응답 변환, 속도 제한, 캐싱, 로깅/모니터링",
+            "Node.js와 Express를 기반으로 한 기술 스택을 고려해주세요",
+            "모듈화된 구조를 통해 새로운 기능과 서비스를 쉽게 추가할 수 있는 설계를 제안해주세요",
+            "각 모듈의 역할과 책임, 컴포넌트 간 상호작용, 확장 메커니즘을 상세히 설명해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "소프트웨어 아키텍트", 
+            "모듈화된 소프트웨어 시스템 설계 전문가로, 다양한 도메인과 기술 스택에서 유지보수하기 쉽고 확장 가능한 모듈 아키텍처를 설계한 깊은 경험을 갖고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 {topic}에 관심이 있는 개발자입니다. "
+            f"모듈화된 접근 방식으로 코드 재사용성과 유지보수성을 높이고자 합니다. "
+            f"효과적인 모듈/컴포넌트 설계 원칙과 구체적인 구현 방법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}에 대한 모듈/컴포넌트 설계를 제안해주세요",
+            "단일 책임 원칙(SRP)과 관심사 분리 원칙을 준수하는 설계를 제안해주세요",
+            "모듈/컴포넌트 구조, 인터페이스, 의존성 관리 방법을 상세히 설명해주세요",
+            "확장성과 유지보수성을 고려한 설계 패턴과 원칙을 제안해주세요",
+            "실제 구현 예시와 코드 스니펫도 포함해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"모듈/컴포넌트 구조는 다이어그램이나 계층 구조로 시각화해주세요. "
+        f"주요 컴포넌트와 그 책임, 인터페이스, 의존성을 명확히 설명해주세요. "
+        f"모듈화 원칙이 어떻게 적용되었는지 설명하고, 확장성과 유지보수성을 어떻게 보장하는지 포함해주세요. "
+        f"예시 코드와 구현 패턴을 포함하여 실제 적용 방법을 보여주세요. "
+        f"대학생이나 초급 개발자도 이해할 수 있도록 명확하게 설명해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Modular_organization")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="모듈과 컴포넌트 구성 방법",
+        topic_options=MODULE_COMPONENT_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

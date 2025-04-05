@@ -1,7 +1,7 @@
 """
-Code_quality 실습 모듈
+오류 디버깅 및 해결 전략 실습 모듈
 
-Part 5 - 섹션 5.2.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.2.3 실습 코드: 프로그램 코드의 오류를 효과적으로 디버깅하고 해결하기 위한 프롬프트 작성법을 실습합니다.
 """
 
 import os
@@ -9,42 +9,193 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_code_quality_prompt, get_enhanced_code_quality_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+DEBUGGING_TOPICS = {
+    "1": {"name": "문법 오류 디버깅", "topic": "코드 문법 오류 디버깅을 위한 프롬프트 작성", "output_format": "디버깅 가이드"},
+    "2": {"name": "런타임 오류 해결", "topic": "런타임 예외 및 오류 해결을 위한 프롬프트 작성", "output_format": "문제 해결 프로세스"},
+    "3": {"name": "논리 오류 수정", "topic": "코드 논리 오류 진단 및 수정을 위한 프롬프트 작성", "output_format": "디버깅 전략"},
+    "4": {"name": "프레임워크 오류", "topic": "특정 프레임워크/라이브러리 오류 해결을 위한 프롬프트 작성", "output_format": "해결 방법론"},
+    "5": {"name": "디버깅 프로세스", "topic": "체계적인 디버깅 프로세스를 위한 프롬프트 체인 작성", "output_format": "단계별 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["코드 오류 해결에 대한 일반적인 질문"],
+    "enhanced": [
+        "오류 상황 명확화: 정확한 오류 메시지와 발생 조건 포함",
+        "맥락 제공: 코드의 목적, 관련 코드, 시스템 제약 조건 제시",
+        "유형별 접근: 문법/런타임/논리 오류 유형에 맞는 구체적 요청",
+        "단계적 프로세스: 분석, 검증, 해결책 제안의 체계적 접근"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "효과적인 디버깅 프롬프트는 정확한 오류 정보와 충분한 맥락을 포함해야 합니다",
+    "오류 유형별로 최적화된 프롬프트 패턴을 사용하면 더 정확한 진단과 해결책을 얻을 수 있습니다",
+    "복잡한 문제는 단계적 프롬프트 체인을 통해 체계적으로 접근하는 것이 효과적입니다",
+    "AI를 활용한 단위 테스트 생성, 코드 흐름 시뮬레이션 등의 특수 전략이 디버깅을 가속화할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별로 다른 역할과 맥락 설정
+    if "문법 오류" in topic:
+        builder.add_role(
+            "코드 디버깅 전문가", 
+            "다양한 프로그래밍 언어의 문법 오류를 효과적으로 진단하고 해결하는 전문가로, 코드 문법과 언어별 특성을 깊이 이해하고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 프로그래밍 학습 중인 학생으로, {topic}에 어려움을 겪고 있습니다. "
+            f"코드에서 문법 오류가 발생할 때 이를 효과적으로 진단하고 해결하기 위한 AI 프롬프트 작성법을 배우고 싶습니다. "
+            f"다양한 언어(Python, JavaScript, Java 등)에서 발생하는 문법 오류에 대응할 수 있는 범용적인 접근법과 언어별 특화된 전략이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "문법 오류 디버깅을 위한 효과적인 프롬프트 작성법을 설명해주세요",
+            "오류 메시지와 위치를 명확히 전달하는 프롬프트 템플릿을 제공해주세요",
+            "주요 프로그래밍 언어별(Python, JavaScript, Java 등) 문법 오류 디버깅 프롬프트 예시를 포함해주세요",
+            "문법 오류의 유형별(괄호 불일치, 들여쓰기 오류, 구문 오류 등) 접근 방법을 설명해주세요",
+            "문법 오류 디버깅 시 흔히 범하는 실수와 피해야 할 점도 알려주세요"
+        ])
+        
+    elif "런타임 오류" in topic:
+        builder.add_role(
+            "런타임 오류 디버깅 전문가", 
+            "다양한 프로그래밍 환경에서 발생하는 런타임 예외와 오류를 효과적으로 진단하고 해결하는 전문가로, 오류 추적 및 디버깅 기법에 깊은 경험을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 애플리케이션 개발 중인 개발자로, {topic}에 관심이 있습니다. "
+            f"코드가 실행 중에 예기치 않게 중단되거나 예외가 발생하는 런타임 오류를 효과적으로 진단하고 해결하기 위한 "
+            f"AI 프롬프트 작성법을 배우고 싶습니다. 스택 트레이스, 예외 메시지, 변수 상태 등을 효과적으로 전달하는 방법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "런타임 오류 해결을 위한 효과적인 프롬프트 작성법을 설명해주세요",
+            "오류 메시지, 스택 트레이스, 실행 환경 정보를 명확히 전달하는 프롬프트 템플릿을 제공해주세요",
+            "주요 런타임 오류 유형별(NullPointerException, IndexOutOfBounds, 메모리 오류 등) 프롬프트 예시를 포함해주세요",
+            "추가 디버깅 정보를 수집하고 이를 프롬프트에 포함하는 방법을 설명해주세요",
+            "런타임 오류 디버깅을 위한 단계적 프롬프트 체인 전략도 제안해주세요"
+        ])
+        
+    elif "논리 오류" in topic:
+        builder.add_role(
+            "논리 오류 디버깅 전문가", 
+            "코드가 문법적으로는 올바르지만 예상대로 작동하지 않는 논리적 오류를 진단하고 해결하는 전문가로, 알고리즘 분석과 코드 로직 검증에 깊은 전문성을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 알고리즘 문제를 풀고 있는 학생으로, {topic}에 어려움을 겪고 있습니다. "
+            f"코드가 오류 메시지 없이 실행되지만 예상과 다른 결과를 내는 논리 오류를 효과적으로 진단하고 해결하기 위한 "
+            f"AI 프롬프트 작성법을 배우고 싶습니다. 특히 입출력 예시, 기대 동작, 실제 동작을 명확히 비교하는 방법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "논리 오류 진단 및 수정을 위한 효과적인 프롬프트 작성법을 설명해주세요",
+            "기대 동작과 실제 동작을 명확히 비교하는 프롬프트 템플릿을 제공해주세요",
+            "다양한 논리 오류 유형(경계 조건 오류, 계산 오류, 알고리즘 오류 등)별 프롬프트 예시를 포함해주세요",
+            "테스트 케이스와 코드 실행 결과를 효과적으로 전달하는 방법을 설명해주세요",
+            "AI를 활용한 코드 흐름 시뮬레이션과 단계별 변수 추적 요청 방법도 포함해주세요"
+        ])
+        
+    elif "프레임워크 오류" in topic:
+        builder.add_role(
+            "프레임워크 오류 해결 전문가", 
+            "다양한 프로그래밍 프레임워크와 라이브러리에서 발생하는 오류를 진단하고 해결하는 전문가로, 프레임워크 아키텍처와 설정 관련 문제 해결에 깊은 경험을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 웹 애플리케이션을 개발 중인 개발자로, {topic}에 관심이 있습니다. "
+            f"React, Django, Spring 등 특정 프레임워크나 라이브러리 사용 중 발생하는 오류를 효과적으로 진단하고 해결하기 위한 "
+            f"AI 프롬프트 작성법을 배우고 싶습니다. 프레임워크 버전, 설정, 아키텍처 정보를 효과적으로 전달하는 방법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "프레임워크/라이브러리 오류 해결을 위한 효과적인 프롬프트 작성법을 설명해주세요",
+            "프레임워크 관련 정보(버전, 설정, 아키텍처)를 효과적으로 전달하는 프롬프트 템플릿을 제공해주세요",
+            "주요 프레임워크별(React, Angular, Django, Spring 등) 오류 해결 프롬프트 예시를 포함해주세요",
+            "프레임워크 문서와 관련 경험을 AI에게 효과적으로 안내하는 방법을 설명해주세요",
+            "프레임워크 특화 커뮤니티와 문서를 활용한 해결책 검증 전략도 포함해주세요"
+        ])
+        
+    elif "디버깅 프로세스" in topic:
+        builder.add_role(
+            "체계적 디버깅 전문가", 
+            "복잡한 소프트웨어 문제를 체계적이고 효율적으로 해결하는 전문가로, 단계적 디버깅 프로세스와 방법론에 깊은 전문성을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 복잡한 프로젝트를 진행 중인 개발자로, {topic}에 관심이 있습니다. "
+            f"문제 분석부터 해결책 검증까지 체계적인 디버깅 프로세스를 AI와 함께 수행하기 위한 효과적인 프롬프트 체인 작성법을 배우고 싶습니다. "
+            f"특히 여러 단계의 대화를 통해 복잡한 문제를 점진적으로 해결해나가는 접근법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "체계적인 디버깅 프로세스를 위한 프롬프트 체인 작성법을 설명해주세요",
+            "문제 분석, 가설 수립, 검증, 해결책 구현, 검증의 단계별 프롬프트 템플릿을 제공해주세요",
+            "각 디버깅 단계에서 수집하고 전달해야 할 정보와 그 방법을 설명해주세요",
+            "디버깅 과정에서 발견한 새로운 정보를 후속 프롬프트에 효과적으로 통합하는 방법을 포함해주세요",
+            "다양한 오류 유형과 복잡도에 따른 프롬프트 체인 조정 전략도 제안해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "코드 디버깅 전문가", 
+            "다양한 프로그래밍 언어와 환경에서 발생하는 오류를 효과적으로 진단하고 해결하는 전문가로, 체계적인 문제 해결 방법론과 디버깅 기법에 깊은 전문성을 가지고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 프로그래밍 학습자로, {topic}에 관심이 있습니다. "
+            f"코드에서 발생하는 다양한 오류(문법, 런타임, 논리 오류 등)를 효과적으로 진단하고 해결하기 위한 "
+            f"AI 프롬프트 작성법을 배우고 싶습니다. 오류 정보와 맥락을 효과적으로 전달하는 방법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "코드 오류 디버깅을 위한 효과적인 프롬프트 작성법을 종합적으로 설명해주세요",
+            "오류 유형별(문법, 런타임, 논리 오류 등) 프롬프트 템플릿과 예시를 제공해주세요",
+            "효과적인 오류 정보와 맥락 전달 방법을 설명해주세요",
+            "단계적 디버깅 프로세스를 위한 프롬프트 체인 전략을 제안해주세요",
+            "오류 디버깅 프롬프트 작성 시 흔히 범하는 실수와 피해야 할 점도 알려주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 코드 블록 등을 명확히 구분해주세요. "
+        f"실제 프롬프트 템플릿과 예시를 코드 블록으로 제시하고, 각 요소의 목적과 효과를 설명해주세요. "
+        f"다양한 오류 상황별 프롬프트 예시와 해결 과정을 포함해주세요. "
+        f"초보자도 이해하고 적용할 수 있도록 명확하고 단계적인 설명을 제공해주세요. "
+        f"실제 개발 과정에서 바로 적용할 수 있는 실용적인 팁과 사례를 중심으로 구성해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Code_quality")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="오류 디버깅 및 해결 전략",
+        topic_options=DEBUGGING_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

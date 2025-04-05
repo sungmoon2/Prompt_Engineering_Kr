@@ -1,7 +1,7 @@
 """
-Project_structure 실습 모듈
+프로젝트 구조화와 관리 실습 모듈
 
-Part 5 - 섹션 5.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 5 - 섹션 5.3 실습 코드: 효과적인 프로젝트 구조화와 관리 전략을 학습합니다.
 """
 
 import os
@@ -9,42 +9,198 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_project_structure_prompt, get_enhanced_project_structure_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+PROJECT_STRUCTURE_TOPICS = {
+    "1": {"name": "웹 애플리케이션 아키텍처", "topic": "React와 Node.js 기반 웹 애플리케이션의 최적 아키텍처", "output_format": "아키텍처 설계서"},
+    "2": {"name": "데이터 처리 파이프라인", "topic": "대용량 데이터 처리 파이프라인 구조 설계", "output_format": "시스템 설계서"},
+    "3": {"name": "모듈화 API 서비스", "topic": "확장 가능한 모듈식 API 서비스 구조", "output_format": "구조 다이어그램"},
+    "4": {"name": "코드 문서화 전략", "topic": "효과적인 코드 문서화 및 주석 전략", "output_format": "가이드라인"},
+    "5": {"name": "마이크로서비스 설계", "topic": "마이크로서비스 기반 시스템 아키텍처", "output_format": "아키텍처 문서"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "역할 정의: 소프트웨어 아키텍트/시스템 설계자 역할 부여",
+        "맥락 제공: 프로젝트 요구사항과 제약 조건 상세 설명",
+        "구체적 요청: 구조화된 설계 단계와 원칙 요청", 
+        "출력 형식: 다이어그램과 코드 예시 포함 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "효과적인 프로젝트 구조화는 유지보수성, 확장성, 협업 효율성을 크게 향상시킵니다",
+    "아키텍처 설계는 프로젝트의 요구사항과 제약조건을 명확히 이해하는 것에서 시작합니다",
+    "모듈화와 컴포넌트 분리는 코드 재사용성과 테스트 용이성을 높이는 핵심 전략입니다",
+    "좋은 코드 문서화는 팀 협업과 지식 공유의 기반이 됩니다",
+    "AI를 활용하면 프로젝트 구조화와 문서화 작업을 효율적으로 수행할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 역할 및 맥락 설정
+    if "웹 애플리케이션" in topic:
+        builder.add_role(
+            "풀스택 소프트웨어 아키텍트", 
+            "프론트엔드와 백엔드를 아우르는 복잡한 웹 애플리케이션의 아키텍처를 설계하는 전문가로, 다양한 기술 스택과 디자인 패턴에 대한 깊은 이해를 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 React와 Node.js를 사용하여 중규모 웹 애플리케이션을 개발하려는 개발자입니다. "
+            f"사용자 인증, 데이터 관리, 실시간 기능이 필요하며, 향후 기능 확장성과 유지보수성이 중요합니다. "
+            f"프론트엔드와 백엔드의 효과적인 구조화 방법과 코드 조직화 전략이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "React와 Node.js 기반 웹 애플리케이션의 최적 아키텍처를 설계해주세요",
+            "프론트엔드(React)와 백엔드(Node.js) 각각의 폴더 구조와 파일 조직화 전략을 제시해주세요",
+            "상태 관리, API 통신, 인증 처리 등 주요 기능별 모듈 설계 방법을 설명해주세요",
+            "확장성과 유지보수성을 고려한 코드 구성 원칙과 패턴을 제안해주세요",
+            "실제 프로젝트 예시 코드와 디렉토리 구조를 포함해주세요"
+        ])
+        
+    elif "데이터 처리" in topic:
+        builder.add_role(
+            "데이터 엔지니어링 아키텍트", 
+            "대용량 데이터 파이프라인 설계와 구현을 전문으로 하는 아키텍트로, 확장 가능하고 신뢰성 높은 데이터 처리 시스템 구축에 전문성을 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 다양한 소스에서 매일 수백만 건의 데이터를 수집, 처리, 분석하는 파이프라인을 구축하려고 합니다. "
+            f"실시간 및 배치 처리가 모두 필요하며, 확장성과 장애 허용성이 중요합니다. "
+            f"Python 기반으로 개발할 예정이며, 효과적인 데이터 처리 파이프라인 구조와 모듈화 전략이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "대용량 데이터 처리를 위한 파이프라인 아키텍처를 설계해주세요",
+            "데이터 수집, 변환, 저장, 분석 등 주요 단계별 모듈 구성 방법을 제시해주세요",
+            "실시간 및 배치 처리를 위한 효과적인 코드 구조화 전략을 설명해주세요",
+            "확장성과 오류 처리를 고려한 모듈 설계 원칙을 제안해주세요",
+            "파이썬 기반 데이터 파이프라인의 실제 폴더 구조와 핵심 모듈 예시 코드를 포함해주세요"
+        ])
+        
+    elif "API 서비스" in topic:
+        builder.add_role(
+            "API 설계 전문가", 
+            "확장 가능하고 유지보수하기 쉬운 API 서비스 아키텍처를 설계하는 전문가로, RESTful 및 GraphQL API 설계 원칙과 모범 사례에 깊은 이해를 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 다양한 클라이언트 애플리케이션에서 사용할 수 있는 모듈화된 API 서비스를 개발하려고 합니다. "
+            f"사용자 관리, 콘텐츠 관리, 분석 등 다양한 기능 영역을 다루며, "
+            f"향후 기능 추가와 변경이 용이해야 합니다. RESTful API로 구현할 예정이며, "
+            f"효과적인 모듈 구성과 코드 구조화 방법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "확장 가능한 모듈식 API 서비스 아키텍처를 설계해주세요",
+            "기능 영역별 모듈 분리와 인터페이스 설계 방법을 제시해주세요",
+            "라우팅, 컨트롤러, 서비스, 데이터 액세스 등 계층별 구조화 전략을 설명해주세요",
+            "API 버전 관리, 문서화, 테스트 전략을 포함한 전체 프로젝트 구조를 제안해주세요",
+            "실제 RESTful API 서비스의 폴더 구조와 주요 구성 요소 예시 코드를 포함해주세요"
+        ])
+        
+    elif "코드 문서화" in topic:
+        builder.add_role(
+            "기술 문서화 전문가", 
+            "효과적인 코드 문서화와 주석 전략을 설계하는 전문가로, 개발자 경험과 팀 협업을 개선하는 문서화 모범 사례에 깊은 이해를 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 다양한 개발자가 참여하는 오픈소스 프로젝트를 관리하고 있습니다. "
+            f"코드의 이해도를 높이고 새로운 기여자의 온보딩을 쉽게 하기 위한 "
+            f"효과적인 코드 문서화 및 주석 전략이 필요합니다. 자동화된 문서 생성과 "
+            f"유지보수가 용이한 문서화 방법론에 관심이 있습니다."
+        )
+        
+        builder.add_instructions([
+            "효과적인 코드 문서화 및 주석 전략을 설계해주세요",
+            "코드 수준별(프로젝트, 모듈, 클래스, 함수) 문서화 모범 사례를 제시해주세요",
+            "자동화된 문서 생성 도구와 이를 프로젝트에 통합하는 방법을 설명해주세요",
+            "다양한 프로그래밍 언어에서의 문서화 컨벤션과 팀 표준 수립 방법을 제안해주세요",
+            "실제 예시 코드와 문서화 템플릿을 포함한 종합적인 문서화 전략을 제공해주세요"
+        ])
+        
+    elif "마이크로서비스" in topic:
+        builder.add_role(
+            "마이크로서비스 아키텍트", 
+            "분산 시스템과 마이크로서비스 아키텍처를 설계하는 전문가로, 확장 가능하고 유연한 시스템 구축 원칙과 패턴에 깊은 이해를 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 기존 모놀리식 애플리케이션을 마이크로서비스로 전환하는 프로젝트를 담당하고 있습니다. "
+            f"사용자 관리, 주문 처리, 제품 카탈로그, 분석 등 다양한 비즈니스 도메인을 다루고 있으며, "
+            f"각 서비스의 효과적인 분리와 통신 방법, 배포 전략이 필요합니다. "
+            f"Docker와 Kubernetes를 활용할 예정이며, 효율적인 마이크로서비스 구조화 방법을 알고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "마이크로서비스 기반 시스템 아키텍처를 설계해주세요",
+            "도메인 기반 서비스 분리와 경계 설정 방법을 제시해주세요",
+            "서비스 간 통신, API 게이트웨이, 서비스 발견 등의 구성 전략을 설명해주세요",
+            "데이터 관리, 트랜잭션, 장애 허용성 등 분산 시스템의 주요 고려사항을 다루는 설계 원칙을 제안해주세요",
+            "실제 마이크로서비스 프로젝트의 구조 예시와 각 서비스의 내부 구조 코드 예시를 포함해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "소프트웨어 아키텍처 전문가", 
+            "효과적인 소프트웨어 시스템 구조를 설계하는 전문가로, 다양한 아키텍처 패턴과 설계 원칙에 깊은 이해를 갖추고 있습니다."
+        )
+        
+        builder.add_context(
+            f"저는 {topic}에 관심이 있는 개발자입니다. "
+            f"효과적인 코드 구조화와 모듈화 전략을 통해 유지보수성과 확장성이 높은 "
+            f"소프트웨어를 개발하고 싶습니다. 프로젝트 구조 설계와 코드 조직화에 대한 "
+            f"체계적인 접근 방법이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}에 대한 체계적인 접근 방법을 설계해주세요",
+            "효과적인 프로젝트 구조와 코드 조직화 전략을 제시해주세요",
+            "모듈화, 컴포넌트 분리, 인터페이스 설계 원칙을 설명해주세요",
+            "확장성과 유지보수성을 고려한 아키텍처 패턴을 제안해주세요",
+            "실제 구현 예시와 폴더 구조 샘플을 포함해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"시스템 아키텍처 다이어그램은 ASCII 다이어그램이나 설명으로 표현해주세요. "
+        f"폴더 구조와 주요 파일 구성을 트리 형태로 보여주세요. "
+        f"주요 모듈과 컴포넌트의 코드 예시를 포함해주세요. "
+        f"대학생과 초보 개발자도 이해할 수 있도록 설명은 명확하고 구체적으로 작성해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Project_structure")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="프로젝트 구조화와 관리",
+        topic_options=PROJECT_STRUCTURE_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
