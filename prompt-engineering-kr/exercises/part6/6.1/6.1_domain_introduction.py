@@ -1,7 +1,7 @@
 """
-Domain_introduction 실습 모듈
+도메인 특화 언어 이해하기 실습 모듈
 
-Part 6 - 섹션 6.1 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 6 - 섹션 6.1 실습 코드: 다양한 전문 분야의 언어와 개념 구조를 이해하고 효과적인 프롬프트를 작성하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,197 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_domain_introduction_prompt, get_enhanced_domain_introduction_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+DOMAIN_LANGUAGE_TOPICS = {
+    "1": {"name": "비즈니스/경영", "topic": "비즈니스 전략 수립 프로세스", "output_format": "개념 설명 및 프레임워크"},
+    "2": {"name": "의학/생명과학", "topic": "의학 연구 논문 구조와 해석 방법", "output_format": "단계별 가이드"},
+    "3": {"name": "법률", "topic": "계약서 검토 및 분석 방법론", "output_format": "체크리스트 및 프로세스"},
+    "4": {"name": "기술/공학", "topic": "소프트웨어 아키텍처 설계 원칙", "output_format": "개념 설명 및 적용 방법"},
+    "5": {"name": "인문/사회과학", "topic": "질적 연구 방법론 설계 및 적용", "output_format": "연구 프레임워크"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 직접적인 질문"],
+    "enhanced": [
+        "전문가 역할 설정: 해당 분야의 전문가/교육자 역할 부여",
+        "지식 수준 명시: 학습자의 이해도와 필요한 설명 수준 제시",
+        "맥락 제공: 정보 활용 목적과 상황 설명",
+        "용어/구조 요청: 분야에 적합한 전문 용어와 설명 구조 명시"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "도메인 특화 언어는 전문 분야의 정확한 소통과 전문성 확보를 위해 중요합니다",
+    "각 분야별 고유한 용어와 개념 체계를 이해하면 더 효과적인 프롬프트를 작성할 수 있습니다",
+    "전문 지식이 부족한 상황에서도 체계적인 접근 전략으로 효과적인 결과를 얻을 수 있습니다",
+    "분야별 지식 구조와 사고 방식을 프롬프트에 반영하면 결과물의 품질이 크게 향상됩니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 분야별 역할 및 맥락 설정
+    if "비즈니스" in purpose:
+        builder.add_role(
+            "비즈니스 전략 컨설턴트",
+            "대기업 및 스타트업을 위한 비즈니스 전략 수립을 지원하며, 복잡한 시장 환경에서 경쟁 우위를 확보하기 위한 전략적 사고방식과 프레임워크를 가르치는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 경영학과 대학생으로 {topic}에 관심이 있습니다. "
+            f"비즈니스 전략 과목의 과제를 준비 중이며, 실제 기업 사례에 적용할 수 있는 체계적인 접근법이 필요합니다. "
+            f"이론적 개념뿐만 아니라 실무에서 활용할 수 있는 구체적인 프레임워크와 방법론을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "비즈니스 전략의 핵심 개념과 프레임워크를 체계적으로 설명해주세요",
+            "포터의 5가지 경쟁요인, SWOT 분석, 가치 사슬 등 주요 전략 도구의 적용 방법을 설명해주세요",
+            "전략 수립 프로세스를 단계별로 구체적으로 설명하고, 각 단계에서 고려해야 할 핵심 요소를 강조해주세요",
+            "실제 비즈니스 사례를 통해 전략 프레임워크의 적용 방법을 보여주세요",
+            "경영학 전공자가 이해할 수 있는 전문 용어를 적절히 사용하되, 필요시 개념을 명확히 설명해주세요"
+        ])
+        
+    elif "의학" in purpose:
+        builder.add_role(
+            "의학 연구 방법론 전문가",
+            "의과대학 교수이자 의학 논문 심사위원으로, 의학 연구의 설계, 수행, 분석 및 결과 해석에 전문성을 갖추고 있으며, 증거 기반 의학의 원칙과 방법론을 가르치는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 의과대학 3학년 학생으로 {topic}에 대해 배우고 있습니다. "
+            f"임상 연구 방법론 수업에서 의학 논문을 비판적으로 읽고 평가하는 과제가 있어, "
+            f"체계적인 접근법이 필요합니다. 특히 연구 설계, 통계 분석, 결과 해석의 신뢰성과 타당성을 "
+            f"평가하는 방법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "의학 연구 논문의 구조와 각 섹션(서론, 방법, 결과, 고찰)의 목적 및 핵심 요소를 설명해주세요",
+            "다양한 연구 설계(무작위 대조군 연구, 코호트 연구, 환자-대조군 연구 등)의 특징과 적절한 적용 상황을 설명해주세요",
+            "의학 연구에서 사용되는 주요 통계 방법의 원리와 해석 방법을 설명해주세요",
+            "논문의 질을 평가하기 위한 체계적인 접근법과 비판적 평가 도구를 제시해주세요",
+            "의학적 근거의 수준과 권고 강도를 평가하는 방법을 포함해주세요"
+        ])
+        
+    elif "법률" in purpose:
+        builder.add_role(
+            "법률 계약 전문가",
+            "기업 법무팀 자문 변호사이자 법과대학 계약법 교수로, 복잡한 법률 문서의 분석, 계약 협상 및 법적 위험 관리에 전문성을 갖추고 있는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 법학과 학생으로 {topic}에 대해 학습하고 있습니다. "
+            f"계약법 수업에서 실제 계약서를 분석하고 검토하는 과제가 있어, "
+            f"체계적인 접근 방법이 필요합니다. 법률 용어의 정확한 해석과 계약 조항의 "
+            f"효력 및 위험 요소를 평가하는 방법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "계약서 검토의 주요 목적과 체계적인 접근 방법론을 설명해주세요",
+            "계약의 핵심 요소(청약, 승낙, 약인, 당사자 능력 등)와 유효성 검토 방법을 설명해주세요",
+            "주요 계약 조항(진술 및 보장, 면책 조항, 해지 조항, 준거법 등)의 목적과 평가 방법을 설명해주세요",
+            "계약서 검토 시 흔히 발생하는 법적 위험과 이를 식별하기 위한 체크리스트를 제공해주세요",
+            "계약 조항의 협상 및 수정을 위한 전략과 대안 제시 방법도 포함해주세요"
+        ])
+        
+    elif "기술" in purpose or "공학" in purpose:
+        builder.add_role(
+            "소프트웨어 아키텍처 전문가",
+            "대규모 기술 기업의 수석 아키텍트이자 소프트웨어 공학 교수로, 복잡한 시스템 설계, 아키텍처 패턴, 품질 속성 최적화에 전문성을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 컴퓨터 공학 전공 학생으로 {topic}에 관심이 있습니다. "
+            f"소프트웨어 설계 과목에서 확장 가능하고 유지보수가 용이한 아키텍처를 설계하는 "
+            f"프로젝트를 진행 중입니다. 이론적 원칙과 함께 실제 적용 방법에 대한 "
+            f"체계적인 지식이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "소프트웨어 아키텍처의 핵심 개념과 중요성을 설명해주세요",
+            "주요 아키텍처 스타일(계층형, 마이크로서비스, 이벤트 기반 등)의 특징, 장단점, 적용 상황을 설명해주세요",
+            "품질 속성(확장성, 성능, 보안, 유지보수성 등)과 이를 아키텍처에 반영하는 전략을 설명해주세요",
+            "아키텍처 설계 프로세스와 의사결정 프레임워크를 단계별로 제시해주세요",
+            "아키텍처 문서화 및 평가 방법과 함께 실제 구현 시 고려해야 할 실용적인 팁도 포함해주세요"
+        ])
+        
+    elif "인문" in purpose or "사회과학" in purpose:
+        builder.add_role(
+            "질적 연구 방법론 전문가", 
+            "사회과학 분야의 저명한 연구자이자 교수로, 다양한 질적 연구 방법론의 설계, 수행, 분석 및 해석에 전문성을 갖추고 있는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 사회학과 대학원생으로 {topic}에 대해 학습하고 있습니다. "
+            f"논문 연구 방법론을 설계하는 과정에서 적절한 질적 연구 접근법을 선택하고 "
+            f"체계적으로 적용하는 방법에 대한 지침이 필요합니다. 특히 연구의 타당성과 "
+            f"신뢰성을 확보하는 방법을 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "질적 연구의 철학적 기반과 주요 접근법(현상학, 근거이론, 민족지학, 사례 연구 등)의 특징과 적용 상황을 설명해주세요",
+            "연구 질문 설정부터 데이터 수집, 분석, 해석에 이르는 질적 연구 프로세스를 단계별로 설명해주세요",
+            "질적 데이터 수집 방법(심층 인터뷰, 포커스 그룹, 참여 관찰 등)의 설계와 실행 방법을 설명해주세요",
+            "데이터 코딩, 테마 도출, 패턴 분석 등 질적 데이터 분석 기법을 구체적으로 설명해주세요",
+            "질적 연구의 타당성, 신뢰성, 윤리적 고려사항을 확보하는 전략도 포함해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            f"{purpose} 전문가", 
+            f"{topic}에 대한 깊은 지식과 실무 경험을 갖춘 교육자이자 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 학생으로 {topic}에 관심이 있습니다. "
+            f"이 주제에 대한 체계적인 이해와 실용적인 지식을 얻고 싶습니다. "
+            f"특히 기본 개념과 원리부터 실제 적용까지 단계적으로 배우고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}의 핵심 개념과 원리를 체계적으로 설명해주세요",
+            "이 분야의 주요 이론과 프레임워크를 소개하고 적용 방법을 설명해주세요",
+            "실제 사례나 예시를 통해 개념의 적용을 보여주세요",
+            "이 분야의 최신 동향과 발전 방향도 포함해주세요",
+            "학생이 실제로 활용할 수 있는 실용적인 팁과 자원도 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"핵심 개념과 용어는 굵은 글씨로 강조하고, 필요시 간단한 정의를 제공해주세요. "
+        f"복잡한 개념은 예시나 비유를 통해 이해하기 쉽게 설명해주세요. "
+        f"가능한 경우 표, 프레임워크, 체크리스트 등을 포함하여 실용성을 높여주세요. "
+        f"전문 용어를 적절히 사용하되, 초보자도 이해할 수 있도록 필요시 용어 설명을 병행해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Domain_introduction")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="도메인 특화 언어 이해하기",
+        topic_options=DOMAIN_LANGUAGE_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

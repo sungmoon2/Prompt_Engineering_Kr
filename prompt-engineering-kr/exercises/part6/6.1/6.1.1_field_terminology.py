@@ -1,7 +1,7 @@
 """
-Field_terminology 실습 모듈
+전문 분야별 주요 용어와 개념 탐색 실습 모듈
 
-Part 6 - 섹션 6.1.1 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 6 - 섹션 6.1.1 실습 코드: 다양한 전문 분야의 핵심 용어와 개념을 이해하고 프롬프트에 효과적으로 활용하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,203 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_field_terminology_prompt, get_enhanced_field_terminology_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+DOMAIN_TERMINOLOGY_TOPICS = {
+    "1": {"name": "경영/마케팅", "topic": "디지털 마케팅 전략 수립을 위한 핵심 용어", "output_format": "용어 사전"},
+    "2": {"name": "의학/생명과학", "topic": "임상 연구 설계 및 평가를 위한 주요 개념", "output_format": "개념 가이드"},
+    "3": {"name": "소프트웨어 개발", "topic": "클라우드 네이티브 애플리케이션 개발 용어", "output_format": "기술 용어집"},
+    "4": {"name": "법률", "topic": "계약법 이해를 위한 필수 법률 용어", "output_format": "법률 용어 해설집"},
+    "5": {"name": "심리학", "topic": "인지행동치료 접근법의 핵심 개념", "output_format": "개념 매핑"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 기본적인 용어 요청"],
+    "enhanced": [
+        "전문가 역할 설정: 해당 분야의 교육자/멘토 역할 부여",
+        "구조화 요청: 기초/중급/고급 수준별 용어 구분 요청",
+        "맥락 제공: 용어 학습 목적과 활용 상황 명시",
+        "관계성 요청: 용어 간의 관계와 개념 구조 설명 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "전문 분야별 핵심 용어와 개념을 이해하면 AI에 더 정확한 요청을 할 수 있습니다",
+    "용어의 수준(기초/중급/고급)을 목적에 맞게 조정하면 응답의 품질이 크게 향상됩니다",
+    "분야별 용어 사전을 구축하면 프롬프트 작성 시 정확한 표현을 빠르게 활용할 수 있습니다",
+    "용어 간의 관계와 개념 구조를 파악하면 해당 분야의 사고방식을 프롬프트에 반영할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대한 주요 용어와 개념을 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 분야별 역할 및 맥락 설정
+    if "경영" in purpose or "마케팅" in purpose:
+        builder.add_role(
+            "디지털 마케팅 교육 전문가",
+            "최신 디지털 마케팅 트렌드와 도구에 정통한 마케팅 컨설턴트이자 교육자로, 복잡한 마케팅 개념을 다양한 수준의 학습자에게 효과적으로 설명하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 마케팅을 공부하는 학생으로 {topic}에 관심이 있습니다. "
+            f"디지털 마케팅 프로젝트를 시작하려 하는데, 관련 용어와 개념이 너무 많아 혼란스럽습니다. "
+            f"체계적으로 디지털 마케팅 용어를 학습하고, 실무에서 정확히 활용할 수 있는 "
+            f"용어 사전이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "디지털 마케팅의 핵심 용어와 개념을 초보자, 중급자, 고급 수준으로 구분하여 설명해주세요",
+            "각 용어의 정확한 정의와 마케팅 전략 수립 시 활용 방법을 설명해주세요",
+            "용어 간의 관계와 개념적 프레임워크를 시각적으로 구조화해주세요",
+            "디지털 마케팅의 주요 영역(SEO, 콘텐츠 마케팅, 소셜 미디어, 이메일 마케팅, 퍼포먼스 마케팅 등)별로 핵심 용어를 분류해주세요",
+            "각 용어가 실제 마케팅 전략과 캠페인에서 어떻게 사용되는지 간단한 예시를 포함해주세요"
+        ])
+        
+    elif "의학" in purpose or "생명과학" in purpose:
+        builder.add_role(
+            "임상 연구 방법론 교수",
+            "의과대학에서 임상 연구 방법론을 가르치는 교수이자 다수의 임상 시험을 설계하고 수행한 경험이 있는 연구자로, 복잡한 임상 연구 개념을 체계적으로 설명하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 의학과 학생으로 {topic}을 배우고 있습니다. "
+            f"임상 연구 논문을 읽고 이해하는 데 어려움을 겪고 있으며, 향후 직접 소규모 연구를 "
+            f"설계하고 수행할 계획입니다. 연구 방법론, 연구 설계, 통계 분석, 결과 해석에 "
+            f"필요한 핵심 용어와 개념을 체계적으로 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "임상 연구의 핵심 용어와 개념을 연구 과정 단계별(계획, 설계, 수행, 분석, 해석)로 구분하여 설명해주세요",
+            "다양한 연구 설계 유형(RCT, 코호트, 환자-대조군 등)과 관련된 핵심 용어와 각 설계의 장단점을 설명해주세요",
+            "통계적 개념과 용어(p값, 신뢰구간, 검정력 등)의 정확한 의미와 해석 방법을 설명해주세요",
+            "연구 결과의 임상적 중요성을 평가하는 데 필요한 개념(NNT, 효과 크기, 임상적 유의성 등)을 설명해주세요",
+            "의학 연구 논문을 비판적으로 평가하는 데 필요한 핵심 용어와 체크리스트를 포함해주세요"
+        ])
+        
+    elif "소프트웨어" in purpose or "개발" in purpose:
+        builder.add_role(
+            "클라우드 네이티브 아키텍처 전문가",
+            "주요 기술 기업에서 클라우드 네이티브 애플리케이션을 설계하고 구현한 경험이 있는 소프트웨어 아키텍트이자 기술 교육자로, 복잡한 클라우드 개념을 개발자들에게 명확하게 설명하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 소프트웨어 개발을 배우는 학생으로 {topic}에 관심이 있습니다. "
+            f"전통적인 애플리케이션 개발에는 익숙하지만, 클라우드 환경으로 전환하는 과정에서 "
+            f"많은 새로운 개념과 용어를 접하게 되었습니다. 클라우드 네이티브 개발에 필요한 "
+            f"핵심 개념과 용어를 체계적으로 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "클라우드 네이티브 개발의 핵심 용어와 개념을 아키텍처, 개발, 배포, 운영 영역별로 구분하여 설명해주세요",
+            "마이크로서비스, 컨테이너화, 오케스트레이션, 서비스 메시 등 핵심 패러다임과 관련 용어를 설명해주세요",
+            "주요 클라우드 디자인 패턴과 아키텍처 원칙(12요소 앱, CQRS, 이벤트 소싱 등)에 관한 용어와 개념을 설명해주세요",
+            "DevOps, CI/CD, 인프라스트럭처 as 코드와 관련된 주요 용어와 도구를 설명해주세요",
+            "클라우드 네이티브 애플리케이션 개발 시 고려해야 할 주요 패턴과 안티패턴을 포함해주세요"
+        ])
+        
+    elif "법률" in purpose:
+        builder.add_role(
+            "계약법 교수",
+            "법과대학에서 계약법을 가르치는 교수이자 기업 법무 경험이 있는 변호사로, 복잡한 법률 개념을 다양한 배경의 학생들에게 명확하게 설명하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 법학과 학생으로 {topic}을 배우고 있습니다. "
+            f"계약법의 다양한 원칙과 개념을 이해하는 데 어려움을 겪고 있으며, "
+            f"법률 용어의 정확한 의미와 적용 방법을 체계적으로 학습하고 싶습니다. "
+            f"이론적 개념과 실무적 적용을 모두 포함하는 종합적인 이해가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "계약법의 핵심 용어와 개념을 계약 형성, 이행, 위반, 구제 등 주요 영역별로 구분하여 설명해주세요",
+            "각 법률 용어의 정확한 정의와 법적 의미를 설명하고, 판례에서 어떻게 해석되고 적용되는지 설명해주세요",
+            "계약 성립의 요건(청약, 승낙, 약인, 의사능력 등)과 관련된 핵심 용어를 설명하고 예시를 들어주세요",
+            "계약 해석 원칙, 묵시적 조건, 면책 조항 등 계약 내용과 관련된 주요 개념을 설명해주세요",
+            "계약 위반의 유형과 구제 수단(손해배상, 특정이행, 취소 등)에 관한 주요 용어와 적용 원칙을 포함해주세요"
+        ])
+        
+    elif "심리학" in purpose:
+        builder.add_role(
+            "인지행동치료 전문가",
+            "임상심리학자이자 인지행동치료 연구 및 교육 분야의 전문가로, 복잡한 심리학적 개념을 다양한 배경의 학습자에게 접근 가능하게 설명하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 심리학과 학생으로 {topic}에 관심이 있습니다. "
+            f"인지행동치료의 이론적 기반과 실제 적용 방법을 배우고 있지만, 다양한 개념과 용어를 "
+            f"체계적으로 이해하는 데 어려움을 겪고 있습니다. 특히 다양한 치료 기법과 그 이론적 "
+            f"근거를 연결하여 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "인지행동치료의 핵심 용어와 개념을 이론적 기반, 평가 방법, 치료 기법으로 구분하여 설명해주세요",
+            "인지적 요소(자동적 사고, 인지적 왜곡, 핵심 믿음 등)와 관련된 주요 용어와 개념을 설명해주세요",
+            "행동적 요소(행동 활성화, 노출, 반응 방지 등)와 관련된 주요 기법과 용어를 설명해주세요",
+            "주요 정신 장애(우울증, 불안 장애 등)에 대한 인지행동적 개념화와 관련 용어를 설명해주세요",
+            "최신 발전(제3세대 인지행동치료, 마음챙김 기반 접근법 등)과 관련된 개념과 용어도 포함해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            f"{purpose} 교육 전문가", 
+            f"{topic}에 관한 깊은 지식과 교육 경험을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 학생으로 {topic}에 관심이 있습니다. "
+            f"이 분야의 다양한 용어와 개념을 체계적으로 이해하고 싶습니다. "
+            f"기초부터 고급 수준까지 단계적으로 학습할 수 있는 용어 가이드가 필요합니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}의 핵심 용어와 개념을 초보자, 중급자, 고급 수준으로 구분하여 설명해주세요",
+            "각 용어의 정확한 정의와 실제 활용 맥락을 설명해주세요",
+            "용어 간의 관계와 개념적 프레임워크를 구조화해주세요",
+            "주요 이론이나 접근 방식별로 관련 용어를 분류해주세요",
+            "각 용어가 실제 상황에서 어떻게 적용되는지 예시를 포함해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"다음 구조로 용어와 개념을 체계적으로 정리해주세요:\n\n"
+        f"1. 개요: 해당 분야의 핵심 영역과 용어 체계에 대한 간략한 소개\n"
+        f"2. 기초 수준 용어: 초보자가 반드시 알아야 할 기본 용어와 개념\n"
+        f"3. 중급 수준 용어: 기초 지식을 갖춘 학습자를 위한 심화 용어\n"
+        f"4. 고급 수준 용어: 전문가 수준의 용어와 최신 개념\n"
+        f"5. 개념 관계도: 주요 용어 간의 관계와 위계 구조 시각화\n"
+        f"6. 실제 활용 가이드: 용어의 맥락별 사용법과 실무 적용 예시\n\n"
+        f"각 용어에 대해 (1) 정확한 정의, (2) 중요성/의미, (3) 관련 개념, (4) 실제 예시를 포함해주세요. "
+        f"필요한 경우 표, 목록, 계층 구조 등을 활용하여 정보를 구조화해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Field_terminology")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="전문 분야별 주요 용어와 개념 탐색",
+        topic_options=DOMAIN_TERMINOLOGY_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

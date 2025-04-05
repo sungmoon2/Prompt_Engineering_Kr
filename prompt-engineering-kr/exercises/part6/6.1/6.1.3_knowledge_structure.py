@@ -1,7 +1,8 @@
 """
-Knowledge_structure 실습 모듈
+도메인 지식 부족 시 접근 전략 실습 모듈
 
-Part 6 - 섹션 6.1.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 6 - 섹션 6.1.3 실습 코드: 익숙하지 않은 분야에서도 효과적인 프롬프트를 작성하고
+단계적 접근을 통해 전문적인 응답을 이끌어내는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +10,212 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_knowledge_structure_prompt, get_enhanced_knowledge_structure_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+UNFAMILIAR_DOMAIN_TOPICS = {
+    "1": {"name": "양자 컴퓨팅", "topic": "양자 컴퓨팅의 기초 개념 이해하기", "output_format": "초보자 가이드"},
+    "2": {"name": "신경언어학", "topic": "신경언어학적 프로그래밍(NLP) 원리 탐색", "output_format": "개념 설명서"},
+    "3": {"name": "금융공학", "topic": "파생상품과 위험 관리 기초", "output_format": "학습 로드맵"},
+    "4": {"name": "분자생물학", "topic": "유전자 편집 기술(CRISPR) 이해하기", "output_format": "단계별 가이드"},
+    "5": {"name": "건축공학", "topic": "지속가능한 건축 설계 원리", "output_format": "개념 프레임워크"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 일반적인 설명 요청"],
+    "enhanced": [
+        "지식 수준 명시: 초보자 입장 명확히 설정",
+        "단계적 접근: 기초부터 심화까지 순차적 설명 요청",
+        "개념 해석: 전문 용어 풀이와 일상적 비유 요청",
+        "전문가 안내: 전문가 멘토링 방식의 설명 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "생소한 분야에 접근할 때 자신의 지식 수준을 명확히 밝히면 적절한 난이도의 설명을 받을 수 있습니다",
+    "기초 개념 매핑, 구조 파악, 맥락화 질문 등의 전략으로 효과적인 기초 지식을 구축할 수 있습니다",
+    "전문가 멘토링과 사고 과정 시뮬레이션 요청은 암묵적 지식에 접근하는 효과적인 방법입니다",
+    "단계적 심화 전략을 통해 점진적으로 복잡한 개념을 이해하고 지식을 확장할 수 있습니다",
+    "프롬프트 반복 개선 과정을 통해 초기 응답을 바탕으로 더 구체적이고 맥락화된 질문을 할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 설명해주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 분야별 역할 및 맥락 설정
+    if "양자 컴퓨팅" in purpose:
+        builder.add_role(
+            "양자 컴퓨팅 교육 전문가",
+            "복잡한 양자 개념을 비전공자도 이해할 수 있게 설명하는 교육자로, 양자 물리학과 컴퓨터 과학의 교차점을 명확하게 전달하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 컴퓨터 과학을 공부하는 학생이지만 양자 역학 배경이 전혀 없어 {topic}에 어려움을 겪고 있습니다. "
+            f"기본적인 컴퓨터 과학 개념(비트, 논리 게이트, 알고리즘 등)은 이해하고 있지만, "
+            f"양자 역학의 원리나 수학적 기반은 생소합니다. 복잡한 수학 없이 "
+            f"양자 컴퓨팅의 핵심 개념을 단계적으로 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "양자 컴퓨팅의 가장 기초적인 개념부터 시작하여 단계적으로 설명해주세요",
+            "전통적인 컴퓨팅과 양자 컴퓨팅의 핵심 차이점을 일상적인 비유를 통해 설명해주세요",
+            "큐비트, 중첩, 얽힘과 같은 핵심 개념을 컴퓨터 과학 배경이 있는 초보자가 이해할 수 있게 설명해주세요",
+            "양자 알고리즘의 기본 원리와 어떤 문제를 해결하는 데 유용한지 설명해주세요",
+            "복잡한 수학적 세부 사항은 생략하되, 개념적 정확성은 유지해주세요",
+            "양자 컴퓨팅을 더 깊이 이해하기 위한 단계별 학습 경로도 제안해주세요"
+        ])
+        
+    elif "신경언어학" in purpose or "NLP" in purpose:
+        builder.add_role(
+            "신경언어학적 프로그래밍 코치",
+            "신경언어학적 프로그래밍(NLP)의 원리와 기법을 쉽게 설명하고 실생활에 적용하는 방법을 가르치는 전문 코치"
+        )
+        
+        builder.add_context(
+            f"저는 자기계발에 관심이 있는 일반인으로 {topic}에 대해 들어본 적은 있지만 구체적으로 이해하지 못합니다. "
+            f"일부 NLP 관련 용어(앵커링, 리프레이밍 등)를 접한 적이 있으나 체계적인 이해는 부족합니다. "
+            f"심리학이나 신경과학 배경 지식이 없는 초보자도 이해하고 적용할 수 있도록 "
+            f"기본 원리부터 실용적인 기법까지 알고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "신경언어학적 프로그래밍의 기본 개념과 목적을 일상적인 언어로 설명해주세요",
+            "NLP의 핵심 원리와 가정을 심리학 배경 지식이 없는 사람도 이해할 수 있게 설명해주세요",
+            "주요 NLP 기법 중 초보자가 쉽게 시도해볼 수 있는 3-5가지를 단계별로 설명해주세요",
+            "각 기법의 목적과 실제 적용 방법, 예상되는 효과를 구체적인 예시와 함께 설명해주세요",
+            "NLP에 대한 오해와 비판적 관점도 간략히 포함해주세요",
+            "더 깊이 학습하고 싶은 초보자를 위한 단계별 접근법을 제안해주세요"
+        ])
+        
+    elif "금융공학" in purpose or "파생상품" in purpose:
+        builder.add_role(
+            "금융 교육 전문가",
+            "복잡한 금융 개념을 비전공자도 이해할 수 있게 설명하는 교육자로, 금융 이론과 실무 경험을 바탕으로 파생상품과 위험 관리를 명확하게 전달하는 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 금융 배경이 거의 없는 일반인으로 {topic}에 관심이 있습니다. "
+            f"기본적인 투자 개념(주식, 채권 등)은 이해하지만, 옵션, 선물, 스왑과 같은 "
+            f"파생상품의 작동 원리와 위험 관리 방법은 생소합니다. 복잡한 수학 없이 "
+            f"핵심 개념과 파생상품이 어떻게, 왜 사용되는지 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "파생상품의 기본 개념과 종류를 금융 배경 지식이 적은 사람도 이해할 수 있게 설명해주세요",
+            "옵션, 선물, 스왑의 기본 원리와 사용 목적을 일상적인 비유와 예시로 설명해주세요",
+            "금융 위험의 유형과 위험 관리의 기본 원칙을 쉽게 설명해주세요",
+            "파생상품이 위험 관리에 어떻게 활용되는지 구체적인 시나리오를 통해 설명해주세요",
+            "개인 투자자가 알아야 할 파생상품 관련 기본 지식과 유의사항을 포함해주세요",
+            "이 주제를 더 깊이 이해하기 위한 단계별 학습 경로를 제안해주세요"
+        ])
+        
+    elif "분자생물학" in purpose or "CRISPR" in purpose:
+        builder.add_role(
+            "생명공학 교육 전문가",
+            "복잡한 분자생물학 개념을 비전공자도 이해할 수 있게 설명하는 교육자로, 최신 유전자 편집 기술의 원리와 응용을 명확하게 전달하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 생물학 배경이 거의 없는 일반인으로 {topic}에 관심이 있습니다. "
+            f"DNA, 유전자, 단백질 같은 기본 개념은 대략 이해하지만, 유전자 편집의 "
+            f"구체적인 메커니즘이나 CRISPR 기술의 작동 원리는 생소합니다. "
+            f"복잡한 세부사항 없이 핵심 개념과 이 기술의 중요성, 활용 방안을 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "CRISPR 유전자 편집 기술의 기본 개념과 작동 원리를 생물학 배경 지식이 적은 사람도 이해할 수 있게 설명해주세요",
+            "기존 유전자 편집 방법과 CRISPR의 차이점을 일상적인 비유를 통해 설명해주세요",
+            "CRISPR 시스템의 핵심 구성 요소와 편집 과정을 단계별로 간략히 설명해주세요",
+            "이 기술의 주요 응용 분야와 잠재적 영향을 구체적인 예시와 함께 설명해주세요",
+            "윤리적 고려사항과 현재 기술의 한계에 대해서도 언급해주세요",
+            "이 주제에 대해 더 알아보기 위한 단계별 학습 경로를 제안해주세요"
+        ])
+        
+    elif "건축공학" in purpose or "건축 설계" in purpose:
+        builder.add_role(
+            "지속가능한 건축 교육자",
+            "친환경 건축과 지속가능한 설계 원리를 가르치는 건축학 교수로, 복잡한 공학적 개념을 비전공자도 이해할 수 있게 설명하는 능력을 갖춘 전문가"
+        )
+        
+        builder.add_context(
+            f"저는 건축이나 공학 배경이 없는 일반인으로 {topic}에 관심이 있습니다. "
+            f"기본적인 건축 요소와 디자인 개념은 이해하지만, 지속가능한 건축의 "
+            f"기술적 측면이나 설계 원리는 생소합니다. 전문적인 용어나 복잡한 "
+            f"공학 설명 없이 핵심 개념과 접근법을 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            "지속가능한 건축의 기본 개념과 목표를 건축 배경 지식이 적은 사람도 이해할 수 있게 설명해주세요",
+            "친환경 건축의 핵심 원칙과 주요 설계 전략을 일상적인 비유와 예시로 설명해주세요",
+            "에너지 효율, 자원 보존, 실내 환경 품질과 같은 주요 요소를 쉽게 설명해주세요",
+            "지속가능한 건축 인증 시스템(LEED, BREEAM 등)의 기본 개념과 중요성을 설명해주세요",
+            "현대 지속가능한 건축의 대표적 사례와 그 특징을 간략히 소개해주세요",
+            "이 주제에 대해 더 알아보기 위한 단계별 학습 경로를 제안해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            f"{purpose} 교육 전문가", 
+            f"복잡한 {topic} 개념을 초보자도 이해할 수 있게 설명하는 교육자"
+        )
+        
+        builder.add_context(
+            f"저는 {purpose} 분야에 대한 배경 지식이 거의 없는 초보자로 {topic}에 관심이 있습니다. "
+            f"이 주제의 기본 개념과 원리를 이해하고 싶지만, 전문적인 용어와 복잡한 "
+            f"세부사항 때문에 어려움을 겪고 있습니다. 단계적으로 접근하여 "
+            f"핵심 개념을 명확하게 이해하고 싶습니다."
+        )
+        
+        builder.add_instructions([
+            f"{topic}의 가장 기초적인 개념부터 시작하여 단계적으로 설명해주세요",
+            "전문 용어가 나올 때마다 즉시 해당 용어를 정의하고 일상적인 비유로 설명해주세요",
+            "복잡한 개념은 간소화하되 핵심적인 정확성은 유지해주세요",
+            "이 주제가 왜 중요한지, 어떤 실제 응용이 있는지 구체적인 예시를 들어 설명해주세요",
+            "초보자가 흔히 겪는 오해나 어려움을 미리 짚어주세요",
+            "더 깊이 학습하기 위한 단계별 접근법을 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"다음 구조로 초보자를 위한 단계적 가이드를 작성해주세요:\n\n"
+        f"1. 개요: 주제에 대한 간략한 소개와 중요성\n"
+        f"2. 핵심 개념: 필수 개념과 용어의 초보자 친화적 설명\n"
+        f"3. 기본 원리: 주요 작동 원리와 매커니즘의 단계별 설명\n"
+        f"4. 일상적 비유: 복잡한 개념을 이해하기 위한 일상적 예시와 비유\n"
+        f"5. 실제 적용: 해당 주제의 실제 활용 사례와 영향\n"
+        f"6. 다음 단계: 더 깊이 학습하기 위한 로드맵과 자원\n\n"
+        f"모든 설명은 명확하고 쉬운 언어를 사용하되, 개념적 정확성은 유지해주세요. "
+        f"필요한 경우 시각적 구조(표, 단계적 다이어그램 등)를 활용하여 이해를 돕습니다. "
+        f"전문 용어를 사용할 때는 반드시 즉시 설명을 덧붙여주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Knowledge_structure")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="도메인 지식 부족 시 접근 전략",
+        topic_options=UNFAMILIAR_DOMAIN_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
