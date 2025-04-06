@@ -1,7 +1,8 @@
 """
-Expert_emulation 실습 모듈
+전문가 페르소나 구체화 방법 실습 모듈
 
-Part 7 - 섹션 7.1.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 7 - 섹션 7.1.2 실습 코드: 전문가 페르소나를 다양한 계층과 측면으로
+체계적으로 구체화하는 방법을 실습합니다.
 """
 
 import os
@@ -9,42 +10,137 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_expert_emulation_prompt, get_enhanced_expert_emulation_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+PERSONA_DEVELOPMENT_TOPICS = {
+    "1": {"name": "지식 계층화", "topic": "전문가 지식 체계의 계층적 구조화", "output_format": "구체화 가이드"},
+    "2": {"name": "사고방식 정의", "topic": "전문가의 사고방식과 문제 접근법 구체화", "output_format": "프레임워크 가이드"},
+    "3": {"name": "커뮤니케이션 스타일", "topic": "전문가의 커뮤니케이션 스타일 정의", "output_format": "스타일 가이드"},
+    "4": {"name": "통합적 페르소나", "topic": "완전한 전문가 페르소나 구축 방법", "output_format": "통합 템플릿"},
+    "5": {"name": "분야별 페르소나", "topic": "다양한 분야의 전문가 페르소나 사례", "output_format": "사례 분석"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["전문가 페르소나에 대한 일반적인 정보 요청"],
+    "enhanced": [
+        "역할 구체화: 프롬프트 엔지니어링 실무 전문가 역할 부여",
+        "구조화 요청: 체계적이고 단계적인 구체화 방법 요청",
+        "다양한 측면: 지식, 사고방식, 커뮤니케이션 스타일 등 다차원적 접근 요청",
+        "실용적 접근: 구체적 예시, 템플릿, 실습 활동 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "심층적인 전문가 페르소나는 단순한 역할보다 훨씬 풍부하고 효과적인 AI 응답을 이끌어냅니다",
+    "전문 지식을 이론, 방법론, 실무 경험, 최신 트렌드 등의 계층으로 구조화하면 더 깊이 있는 페르소나를 만들 수 있습니다",
+    "전문가의 사고방식과 접근법을 명확히 정의하면 일관되고 전문성 있는 문제 해결 방식을 유도할 수 있습니다",
+    "커뮤니케이션 스타일을 구체화하면 전문가 페르소나의 응답이 더 진정성 있고 효과적으로 전달됩니다",
+    "다양한 요소가 일관되게 통합된 페르소나를 개발하면 복잡한 전문 영역에서도 신뢰할 수 있는 응답을 얻을 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 설명해주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "프롬프트 엔지니어링 전문가", 
+        "실제 프로젝트에서 다양한 전문가 페르소나를 개발하고 활용한 경험이 풍부한 프롬프트 엔지니어링 전문가입니다. 특히 복잡한 전문 분야의 지식 체계와 사고방식을 AI 프롬프트에 효과적으로 구현하여 고품질 결과를 얻는 방법에 깊은 전문성을 갖추고 있습니다."
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 프롬프트 엔지니어링을 학습 중인 학생으로, {topic}에 대해 배우고 싶습니다. "
+        f"단순한 역할 설정을 넘어서 더 풍부하고 심층적인 전문가 페르소나를 개발하는 체계적인 "
+        f"방법을 알고 싶습니다. 이론적 설명뿐만 아니라 실제로 적용할 수 있는 구체적인 "
+        f"단계와 예시, 그리고 실습 활동이 포함된 실용적인 가이드가 필요합니다."
+    )
+    
+    # 주제별 구체적인 지시사항 추가
+    if "지식 계층화" in topic:
+        builder.add_instructions([
+            "전문가 지식을 계층적으로 구조화하는 방법과 그 중요성을 설명해주세요",
+            "이론적 기반, 방법론적 전문성, 실무 경험, 최신 트렌드 인식 등의 지식 계층을 상세히 설명해주세요",
+            "각 계층에 포함되어야 할 구체적인 요소와 정보를 제시해주세요",
+            "다양한 분야(기술, 비즈니스, 의료, 교육 등)의 지식 계층화 예시를 제공해주세요",
+            "효과적인 지식 계층화를 위한 단계별 접근법과 템플릿, 그리고 실습 활동도 포함해주세요"
+        ])
+    elif "사고방식" in topic:
+        builder.add_instructions([
+            "전문가의 사고방식과 문제 접근법을 구체화하는 방법과 그 중요성을 설명해주세요",
+            "분석 프레임워크, 의사결정 기준, 우선순위 체계, 전형적 절차 등의 사고방식 구성 요소를 상세히 설명해주세요",
+            "각 구성 요소를 효과적으로 정의하기 위한 구체적인 질문과 고려사항을 제시해주세요",
+            "다양한 분야의 전문가 사고방식 정의 예시를 제공해주세요",
+            "사고방식 정의를 위한 단계별 워크플로우와 템플릿, 그리고 실습 활동도 포함해주세요"
+        ])
+    elif "커뮤니케이션 스타일" in topic:
+        builder.add_instructions([
+            "전문가의 커뮤니케이션 스타일을 정의하는 방법과 그 중요성을 설명해주세요",
+            "형식성 수준, 설명 방식, 용어 사용, 설득 전략 등의 커뮤니케이션 스타일 요소를 상세히 설명해주세요",
+            "각 요소를 효과적으로 구체화하기 위한 고려사항과 접근법을 제시해주세요",
+            "다양한 분야와 목적에 따른 커뮤니케이션 스타일 예시를 제공해주세요",
+            "커뮤니케이션 스타일 정의를 위한 템플릿과 단계별 가이드, 그리고 실습 활동도 포함해주세요"
+        ])
+    elif "통합적 페르소나" in topic:
+        builder.add_instructions([
+            "지식, 사고방식, 커뮤니케이션 스타일 등의 요소를 통합하여 완전한 전문가 페르소나를 구축하는 방법을 설명해주세요",
+            "통합적 페르소나의 각 구성 요소 간 일관성과 조화를 확보하는 방법을 설명해주세요",
+            "다양한 맥락과 상황에 적응할 수 있는 유연한 페르소나 설계 방법을 제시해주세요",
+            "전문가 페르소나 구축을 위한 종합적인 템플릿과 체크리스트를 제공해주세요",
+            "통합적 페르소나를 개발하고 테스트하는 단계별 프로세스와 실습 활동도 포함해주세요"
+        ])
+    elif "분야별 페르소나" in topic:
+        builder.add_instructions([
+            "다양한 전문 분야(기술, 비즈니스, 의료, 법률, 교육 등)의 전문가 페르소나 사례를 분석해주세요",
+            "각 분야별 페르소나의 특징적인 요소와 구성 방식을 비교해주세요",
+            "분야별 특성을 효과적으로 반영하는 페르소나 구축 전략을 제시해주세요",
+            "2-3개 분야의 완전한 페르소나 예시를 상세히 제공해주세요",
+            "자신의 관심 분야에 맞는 페르소나를 개발하기 위한 단계별 가이드와 실습 활동도 포함해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}에 대한 체계적이고 실용적인 가이드를 제공해주세요",
+            "핵심 개념과 원칙을 명확히 설명해주세요",
+            "단계별 접근법과 구체적인 예시를 포함해주세요",
+            "다양한 상황과 분야에 적용할 수 있는 방법을 제시해주세요",
+            "실습해볼 수 있는 활동이나 템플릿도 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"이론적 설명과 실용적 적용을 균형 있게 포함하고, 가능한 경우 표나 다이어그램을 "
+        f"활용하여 정보를 시각적으로 구조화해주세요. 다양한 분야의 구체적인 예시와 "
+        f"템플릿을 포함하여 실제 적용 가능성을 높여주세요. 마지막에는 '실습 활동' 섹션을 "
+        f"포함하여 배운 개념을 직접 적용해볼 수 있는 1-2개의 구체적인 연습 활동을 제안해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Expert_emulation")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="전문가 페르소나 구체화 방법",
+        topic_options=PERSONA_DEVELOPMENT_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

@@ -1,7 +1,8 @@
 """
-Perspective_diversity 실습 모듈
+다중 역할 활용 전략 실습 모듈
 
-Part 7 - 섹션 7.1.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 7 - 섹션 7.1.3 실습 코드: 여러 역할과 관점을 조합하여 복잡한 문제에
+다각적인 접근을 가능하게 하는 다중 역할 프롬프팅 전략을 실습합니다.
 """
 
 import os
@@ -9,42 +10,138 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_perspective_diversity_prompt, get_enhanced_perspective_diversity_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+MULTI_ROLE_TOPICS = {
+    "1": {"name": "다학제 팀 접근법", "topic": "다양한 전문가로 구성된 팀 활용 전략", "output_format": "팀 구성 가이드"},
+    "2": {"name": "역할 간 대화 유도", "topic": "역할 간 토론과 대화를 통한 다각적 분석", "output_format": "대화 설계 가이드"},
+    "3": {"name": "순차적 역할 전환", "topic": "여러 역할을 순차적으로 적용한 다차원 분석", "output_format": "분석 체인 가이드"},
+    "4": {"name": "관점 통합 전략", "topic": "다양한 역할 관점의 효과적 통합 방법", "output_format": "통합 프레임워크"},
+    "5": {"name": "복잡한 문제 해결", "topic": "다중 역할 접근법을 활용한 복잡한 문제 해결", "output_format": "문제 해결 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["다중 역할에 대한 일반적인 정보 요청"],
+    "enhanced": [
+        "전문가 역할 설정: 프롬프트 설계 전략가 역할 부여",
+        "구체적 요청: 다양한 다중 역할 기법의 체계적 설명 요청",
+        "실용적 접근: 구체적 예시, 템플릿, 사례 연구 요청",
+        "맞춤형 응용: 다양한 상황에 맞는 적용 방법 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "다중 역할 접근법은 복잡한 문제에 대한 더 풍부하고 균형 잡힌 분석을 가능하게 합니다",
+    "다양한 전문 분야나 관점을 결합하면 단일 역할 접근법보다 더 종합적인 해결책을 도출할 수 있습니다",
+    "역할 간 대화나 토론을 통해 다양한 관점의 상호작용과 시너지를 탐색할 수 있습니다",
+    "순차적 역할 전환이나 통합 접근법을 통해 다각적 분석과 종합적 결론 도출이 가능합니다",
+    "다중 역할 설계 시 역할 선택, 상호작용 방식, 균형, 통합 메커니즘을 신중하게 고려해야 합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 설명해주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "프롬프트 설계 전략가", 
+        "복잡한 문제 해결을 위한 고급 프롬프팅 전략을 개발하는 전문가로, 특히 다중 역할 접근법과 관점 통합 기법에 깊은 전문성을 갖추고 있습니다. 다양한 분야의 클라이언트와 협업하여 맞춤형 다중 역할 프롬프트를 설계한 풍부한 경험이 있으며, 이를 통해 복잡한 문제에 대한 통찰력 있는 분석과 해결책을 도출해왔습니다."
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 프롬프트 엔지니어링을 학습 중인 학생으로, {topic}에 관심이 있습니다. "
+        f"단일 역할을 넘어서 여러 역할과 관점을 활용하여 복잡한 문제에 더 풍부하고 "
+        f"다각적인 접근을 가능하게 하는 방법을 배우고 싶습니다. 이론적 설명뿐만 아니라 "
+        f"다양한 상황에 적용할 수 있는 구체적인 기법, 템플릿, 예시가 포함된 실용적인 "
+        f"가이드가 필요합니다."
+    )
+    
+    # 주제별 구체적인 지시사항 추가
+    if "다학제 팀" in topic:
+        builder.add_instructions([
+            "다학제 팀 접근법의 개념과 이점을 설명해주세요",
+            "효과적인 다학제 팀 구성 원칙과 다양한 역할 유형을 체계적으로 설명해주세요",
+            "상호보완적인 전문성을 가진 팀을 설계하는 구체적인 방법과 고려사항을 제시해주세요",
+            "다양한 분야(정책 분석, 제품 개발, 연구 프로젝트 등)에 맞는 다학제 팀 구성 예시를 제공해주세요",
+            "다학제 팀 접근법을 활용한 프롬프트 템플릿과 실제 적용 사례, 그리고 실습 활동도 포함해주세요"
+        ])
+    elif "역할 간 대화" in topic:
+        builder.add_instructions([
+            "역할 간 대화와 토론을 통한 다각적 분석의 개념과 이점을 설명해주세요",
+            "전문가 패널, 인터뷰, 찬반 토론 등 다양한 대화 형식과 그 특성을 체계적으로 설명해주세요",
+            "효과적인 역할 간 대화를 설계하는 구체적인 방법과 구조를 제시해주세요",
+            "다양한 주제와 목적에 맞는 역할 간 대화 예시와 템플릿을 제공해주세요",
+            "역할 간 대화를 활용한 프롬프트 설계 전략과 실제 사례, 그리고 실습 활동도 포함해주세요"
+        ])
+    elif "순차적 역할" in topic:
+        builder.add_instructions([
+            "순차적 역할 전환 접근법의 개념과 이점을 설명해주세요",
+            "여러 역할이나 관점을 순차적으로 적용하는 다양한 방식과 구조를 체계적으로 설명해주세요",
+            "효과적인 역할 순서와 연결성을 설계하는 구체적인 방법과 고려사항을 제시해주세요",
+            "다양한 문제 유형에 맞는 순차적 분석 체인 예시와 템플릿을 제공해주세요",
+            "순차적 역할 전환을 활용한 프롬프트 설계 전략과 실제 사례, 그리고 실습 활동도 포함해주세요"
+        ])
+    elif "관점 통합" in topic:
+        builder.add_instructions([
+            "다양한 역할 관점의 통합 전략과 그 중요성을 설명해주세요",
+            "상충되는 관점, 우선순위, 가치 간의 균형을 맞추는 다양한 접근법을 체계적으로 설명해주세요",
+            "효과적인 통합 메커니즘과 프레임워크를 설계하는 구체적인 방법을 제시해주세요",
+            "다양한 분야와 문제 유형에 맞는 관점 통합 예시와 템플릿을 제공해주세요",
+            "관점 통합 전략을 활용한 프롬프트 설계 접근법과 실제 사례, 그리고 실습 활동도 포함해주세요"
+        ])
+    elif "복잡한 문제" in topic:
+        builder.add_instructions([
+            "복잡한 문제 해결을 위한 다중 역할 접근법의 개념과 이점을 설명해주세요",
+            "문제 유형에 따른 최적의 다중 역할 전략 선택 방법을 체계적으로 설명해주세요",
+            "복잡한 문제를 분해하고 각 부분에 적합한 역할 조합을 설계하는 구체적인 방법을 제시해주세요",
+            "다양한 복잡한 문제 유형(윤리적 딜레마, 다기준 의사결정, 시스템 설계 등)에 대한 다중 역할 접근 예시를 제공해주세요",
+            "복잡한 문제 해결을 위한 종합적인 다중 역할 프롬프트 프레임워크와 실제 사례, 그리고 실습 활동도 포함해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}에 대한 체계적이고 실용적인 가이드를 제공해주세요",
+            "핵심 개념과 원칙을 명확히 설명해주세요",
+            "단계별 접근법과 구체적인 예시를 포함해주세요",
+            "다양한 상황과 분야에 적용할 수 있는 방법을 제시해주세요",
+            "실습해볼 수 있는 활동이나 템플릿도 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"이론적 설명과 실용적 적용을 균형 있게 포함하고, 가능한 경우 표나 다이어그램을 "
+        f"활용하여 정보를 시각적으로 구조화해주세요. 실제 프롬프트 예시와 템플릿을 "
+        f"충분히 포함하여 직접 적용할 수 있게 해주세요. 마지막에는 '실습 활동' 섹션을 "
+        f"포함하여 배운 개념을 직접 적용해볼 수 있는 1-2개의 구체적인 연습 활동을 제안해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Perspective_diversity")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="다중 역할 활용 전략",
+        topic_options=MULTI_ROLE_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

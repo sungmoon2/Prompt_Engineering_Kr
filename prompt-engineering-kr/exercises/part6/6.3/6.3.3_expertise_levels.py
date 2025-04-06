@@ -1,7 +1,7 @@
 """
-Expertise_levels 실습 모듈
+다양한 전문가 관점 통합하기 실습 모듈
 
-Part 6 - 섹션 6.3.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 6 - 섹션 6.3.3 실습 코드: 복잡한 주제에 대해 여러 전문 분야의 관점을 통합하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,141 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_expertise_levels_prompt, get_enhanced_expertise_levels_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+MULTI_PERSPECTIVE_TOPICS = {
+    "1": {"name": "인공지능 윤리", "topic": "인공지능 윤리에 대한 다양한 전문가 관점", "output_format": "관점 통합 분석"},
+    "2": {"name": "기후변화 대응", "topic": "기후변화 대응에 대한 다학제적 접근", "output_format": "종합 보고서"},
+    "3": {"name": "디지털 전환", "topic": "디지털 전환이 사회에 미치는 영향", "output_format": "다면 분석"},
+    "4": {"name": "개인정보 보호", "topic": "개인정보 보호와 데이터 활용의 균형", "output_format": "다각적 검토"},
+    "5": {"name": "미래 교육", "topic": "미래 교육의 변화와 방향성", "output_format": "통합 보고서"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 일반적인 질문"],
+    "enhanced": [
+        "다학제적 접근 요청: 특정 분야가 아닌 여러 분야의 관점 요청",
+        "전문가 역할 통합: 각 분야별 전문가 관점의 통합 요청",
+        "구조화된 분석: 다양한 관점의 체계적 비교 및 통합 요청",
+        "맥락 적용: 현실적 상황에서의 적용 및 균형점 모색 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "복잡한 문제는 단일 분야의 관점으로 충분히 이해하거나 해결할 수 없습니다",
+    "다양한 전문 분야의 렌즈를 통해 문제를 살펴보면 더 종합적인 이해가 가능합니다",
+    "상충되는 관점들 사이의 균형점과 통합 지점을 찾는 것이 중요합니다",
+    "다학제적 접근은 창의적 해결책과 혁신적 통찰을 이끌어낼 수 있습니다",
+    "프롬프트 설계 시 의도적으로 다양한 전문가 역할을 요청하면 더 풍부한 결과를 얻을 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 설명해주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "다학제적 통합 분석가", 
+        "복잡한 주제에 대해 다양한 학문 분야와 전문가 관점을 통합하여 종합적인 이해와 분석을 제공하는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 대학원생으로 {topic}에 관한 종합적인 이해가 필요합니다. "
+        f"이 주제는 여러 학문과 전문 분야에 걸쳐 있어 다양한 관점에서의 분석이 필요합니다. "
+        f"단일 분야의 시각으로는 충분한 이해가 어려우므로, 다양한 전문가들이 이 주제를 어떻게 바라보는지, "
+        f"그리고 이러한 다양한 관점들을 어떻게 통합하여 더 풍부한 이해를 얻을 수 있는지 알고 싶습니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "인공지능 윤리" in topic:
+        builder.add_instructions([
+            "컴퓨터 과학자, 윤리학자, 법률 전문가, 사회학자, 산업계 리더의 관점에서 인공지능 윤리 문제를 분석해주세요",
+            "각 분야의 전문가들이 중점을 두는 핵심 윤리적 고려사항과 우려 사항을 설명해주세요",
+            "서로 상충되는 관점들을 명확히 하고, 이러한 긴장 관계를 어떻게 조화시킬 수 있는지 제안해주세요",
+            "인공지능 윤리에 관한 학제 간 대화와 협력을 위한 공통 기반이나 프레임워크를 제시해주세요",
+            "다양한 관점을 통합한 균형 잡힌 인공지능 윤리 접근법의 실제 적용 방안을 제안해주세요"
+        ])
+    elif "기후변화 대응" in topic:
+        builder.add_instructions([
+            "기후 과학자, 경제학자, 정책 입안자, 환경 활동가, 산업계 대표의 관점에서 기후변화 대응을 분석해주세요",
+            "각 분야에서 제시하는 핵심 대응 전략과 그 이면의 논리를 설명해주세요",
+            "서로 다른 관점들 사이의 주요 쟁점과 합의점을 식별하고 비교해주세요",
+            "다양한 이해관계자 간의 협력을 촉진할 수 있는 통합적 접근법을 제안해주세요",
+            "단기적 경제적 이익과 장기적 환경 보전 사이의 균형을 찾는 전략을 제시해주세요"
+        ])
+    elif "디지털 전환" in topic:
+        builder.add_instructions([
+            "기술 전문가, 사회학자, 경제학자, 교육자, 심리학자 관점에서 디지털 전환의 영향을 분석해주세요",
+            "각 분야에서 바라보는 디지털 전환의 주요 기회와 도전 과제를 설명해주세요",
+            "기술적 발전과 사회적, 심리적, 경제적 영향 사이의 상호작용을 탐색해주세요",
+            "디지털 전환이 가져올 수 있는 긍정적 변화를 극대화하고 부정적 영향을 최소화하는 통합적 접근법을 제안해주세요",
+            "다양한 관점을 고려한 균형 잡힌 디지털 전환 전략의 실용적 적용 방안을 제시해주세요"
+        ])
+    elif "개인정보 보호" in topic:
+        builder.add_instructions([
+            "정보보안 전문가, 법률가, 윤리학자, 비즈니스 전략가, 소비자 권익 옹호자 관점에서 개인정보 보호 문제를 분석해주세요",
+            "각 분야에서 중요시하는 개인정보 관련 핵심 가치와 우선순위를 설명해주세요",
+            "데이터 활용의 혁신적 가능성과 개인정보 보호 사이의 긴장 관계를 탐색해주세요",
+            "상충되는 이해관계를 조정하고 다양한 관점을 통합할 수 있는 프레임워크나 원칙을 제안해주세요",
+            "실제 사례나 시나리오를 통해 균형 잡힌 접근법의 적용 방안을 보여주세요"
+        ])
+    elif "미래 교육" in topic:
+        builder.add_instructions([
+            "교육학자, 기술 전문가, 심리학자, 미래학자, 경제학자 관점에서 미래 교육의 방향성을 분석해주세요",
+            "각 분야에서 바라보는 미래 교육의 핵심 과제와 혁신 방향을 설명해주세요",
+            "전통적 교육 가치와 새로운 기술적, 사회적 요구 사이의 균형점을 탐색해주세요",
+            "다양한 전문가 관점을 통합한 미래 교육 모델이나 프레임워크를 제안해주세요",
+            "교육의 목적, 방법, 평가에 대한 학제 간 대화를 촉진할 수 있는 공통 언어나 접근법을 제시해주세요"
+        ])
+    else:
+        builder.add_instructions([
+            f"{topic}에 대해 최소 5개 이상의 다양한 전문 분야 관점에서 분석해주세요",
+            "각 분야에서 중점을 두는 핵심 측면과 우선순위, 접근 방식을 설명해주세요",
+            "서로 다른 관점들 사이의 주요 합의점과 차이점, 긴장 관계를 식별해주세요",
+            "다양한 관점을 통합하여 더 포괄적인 이해를 제공하는 프레임워크를 제안해주세요",
+            "이러한 통합적 접근법을 실제 상황에 적용할 수 있는 구체적인 방안을 제시해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"다음 구조를 포함해주세요: "
+        f"1) 주제 소개 및 다학제적 접근의 필요성 "
+        f"2) 각 전문 분야별 관점 분석 (분야별로 구분) "
+        f"3) 관점 간 비교 분석 (합의점, 차이점, 긴장 관계) "
+        f"4) 통합적 프레임워크 또는 접근법 제안 "
+        f"5) 실제 적용 및 균형점 모색 방안 "
+        f"비교 표, 다이어그램 등 시각적 요소를 활용하여 다양한 관점을 효과적으로 대조해주세요. "
+        f"전문 용어는 필요시 간략히 설명해주시고, 실용적이고 균형 잡힌 시각으로 작성해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Expertise_levels")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="다양한 전문가 관점 통합하기",
+        topic_options=MULTI_PERSPECTIVE_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
