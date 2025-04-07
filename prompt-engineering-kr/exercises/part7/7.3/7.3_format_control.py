@@ -1,7 +1,7 @@
 """
-Format_control 실습 모듈
+형식 및 구조 정교화 실습 모듈
 
-Part 7 - 섹션 7.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 7 - 섹션 7.3 실습 코드: 구조화된 출력 요청, 시각적 요소와 포맷팅, 재사용 가능한 템플릿 설계를 학습합니다.
 """
 
 import os
@@ -9,42 +9,199 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_format_control_prompt, get_enhanced_format_control_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+FORMATTING_TOPICS = {
+    "1": {"name": "연구 보고서 구조화", "topic": "학술 연구 결과의 효과적인 구조화 및 시각적 표현", "output_format": "연구 보고서 템플릿"},
+    "2": {"name": "비즈니스 분석", "topic": "시각적 요소를 활용한 비즈니스 데이터 분석 및 보고서 작성", "output_format": "분석 보고서"},
+    "3": {"name": "기술 문서화", "topic": "복잡한 기술 정보의 체계적 문서화 및 포맷팅", "output_format": "기술 문서 템플릿"},
+    "4": {"name": "학습 자료 설계", "topic": "효과적인 학습을 위한 교육 자료의 구조화 및 시각적 설계", "output_format": "학습 자료 가이드"},
+    "5": {"name": "프로젝트 계획서", "topic": "체계적인 프로젝트 계획 및 문서화를 위한 템플릿 설계", "output_format": "프로젝트 문서 템플릿"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["주제에 대한 일반적인 정보 요청"],
+    "enhanced": [
+        "구조화 요청: 명확한 섹션과 계층 구조 지정",
+        "시각적 요소: 표, 마크다운 포맷팅, 다이어그램 활용",
+        "템플릿 설계: 재사용 가능한 형식과 변수 시스템 구현",
+        "맞춤형 구성: 다양한 용도와 상황에 맞는 구조 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "명확한 구조화 요청을 통해 일관된 형식과 이해하기 쉬운 결과물을 얻을 수 있습니다",
+    "시각적 요소와 포맷팅은 정보의 계층과 관계를 명확히 전달하는 데 중요한 역할을 합니다",
+    "재사용 가능한 템플릿은 효율성을 높이고 반복적인 작업의 품질을 일관되게 유지합니다",
+    "다양한 정보 유형과 목적에 맞는 맞춤형 구조 설계는 커뮤니케이션 효과를 극대화합니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 설명해주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 주제별 맞춤 역할 및 맥락 설정
+    if "연구 보고서" in topic:
+        builder.add_role(
+            "학술 출판 전문가", 
+            "연구 결과를 효과적으로 구조화하고 시각적으로 표현하는 학술 출판 및 커뮤니케이션 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 학술 연구자로서 {topic}에 관심이 있습니다. "
+            f"연구 결과를 명확하고 효과적으로 전달하기 위한 구조화된 보고서 형식과 템플릿이 필요합니다. "
+            f"특히 복잡한 정보를 체계적으로 구성하고, 시각적 요소를 활용하여 독자의 이해를 돕는 방법에 대한 지침이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "연구 보고서의 최적 구조와 섹션별 포맷팅 지침을 제공해주세요",
+            "학술적 내용을 효과적으로 전달하기 위한 시각적 요소 활용법을 설명해주세요",
+            "다양한 연구 유형(실험, 조사, 문헌 연구 등)에 맞게 조정 가능한 템플릿을 설계해주세요",
+            "표, 그래프, 다이어그램 등의 데이터 시각화 요소를 효과적으로 통합하는 방법을 제안해주세요",
+            "재사용 가능한 연구 보고서 템플릿과 그 활용법을 마크다운 형식으로 제공해주세요"
+        ])
+        
+    elif "비즈니스 분석" in topic:
+        builder.add_role(
+            "비즈니스 인텔리전스 전문가", 
+            "복잡한 비즈니스 데이터를 명확하고 설득력 있게 시각화하고 구조화하는 데이터 분석 및 보고서 설계 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 비즈니스 분석가로서 {topic}에 관심이 있습니다. "
+            f"데이터 기반 인사이트를 경영진과 이해관계자들에게 효과적으로 전달하기 위한 보고서 구조와 시각화 전략이 필요합니다. "
+            f"특히 데이터 스토리텔링과 시각적 계층 구조를 활용하여 명확한 비즈니스 메시지를 전달하는 방법에 대한 지침이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "비즈니스 데이터 분석 보고서의 효과적인 구조와 섹션 구성을 제안해주세요",
+            "핵심 비즈니스 메트릭과 KPI를 시각적으로 효과적으로 표현하는 방법을 설명해주세요",
+            "경영진 보고용 대시보드와 상세 분석 보고서의 구조적 차이와 각각의 최적화 방법을 설명해주세요",
+            "데이터 스토리텔링을 위한 시각적 흐름과 포맷팅 전략을 제시해주세요",
+            "다양한 비즈니스 상황(성과 보고, 시장 분석, 예측 등)에 맞게 조정 가능한 템플릿을 마크다운 형식으로 제공해주세요"
+        ])
+        
+    elif "기술 문서화" in topic:
+        builder.add_role(
+            "기술 문서화 전문가", 
+            "복잡한 기술 정보를 명확하고 접근 가능하게 구조화하는 기술 문서 및 매뉴얼 설계 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 소프트웨어 개발자로서 {topic}에 관심이 있습니다. "
+            f"API, 시스템 아키텍처, 코드 기능 등 복잡한 기술 정보를 체계적으로 문서화하고 싶습니다. "
+            f"개발자와 비기술적 이해관계자 모두가 이해할 수 있는 명확한 구조와 포맷팅 전략이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "기술 문서의 효과적인 구조와 섹션 구성에 대한 모범 사례를 제시해주세요",
+            "코드, API 설명, 시스템 구성 요소 등 다양한 기술 정보를 포맷팅하는 최적의 방법을 설명해주세요",
+            "기술적 다이어그램, 흐름도, 아키텍처 도식 등의 시각적 요소를 효과적으로 통합하는 방법을 제안해주세요",
+            "다양한 기술 수준의 독자를 위한 계층적 정보 구조를 설계하는 방법을 설명해주세요",
+            "재사용 가능한 기술 문서 템플릿과 그 활용법을 마크다운 형식으로 제공해주세요"
+        ])
+        
+    elif "학습 자료" in topic:
+        builder.add_role(
+            "교육 콘텐츠 설계자", 
+            "효과적인 학습을 촉진하는 구조화된 교육 자료와 시각적 학습 도구를 개발하는 교육 콘텐츠 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 교육자로서 {topic}에 관심이 있습니다. "
+            f"복잡한 개념을 학습자가 쉽게 이해하고 기억할 수 있도록 구조화된 교육 자료를 설계하고 싶습니다. "
+            f"특히 시각적 요소, 정보 계층화, 상호작용 촉진을 위한 구조적 접근법에 대한 지침이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "효과적인 학습 자료의 구조적 특성과 설계 원칙을 설명해주세요",
+            "학습 목표, 내용, 평가를 일관되게 연결하는 구조화 전략을 제시해주세요",
+            "복잡한 개념을 단계적으로 소개하기 위한 정보 계층화 방법을 설명해주세요",
+            "다양한 학습 스타일과 수준을 고려한 시각적 설계 및 포맷팅 전략을 제안해주세요",
+            "재사용 가능한 학습 자료 템플릿과 그 활용법을 마크다운 형식으로 제공해주세요"
+        ])
+        
+    elif "프로젝트 계획" in topic:
+        builder.add_role(
+            "프로젝트 문서화 전문가", 
+            "효과적인 프로젝트 계획, 관리, 보고를 위한 문서 체계와 템플릿을 설계하는 프로젝트 관리 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 프로젝트 관리자로서 {topic}에 관심이 있습니다. "
+            f"프로젝트의 계획, 진행 상황, 결과를 명확하고 체계적으로 문서화하기 위한 효과적인 템플릿과 구조가 필요합니다. "
+            f"다양한 이해관계자와의 커뮤니케이션을 위한 시각적 요소와 정보 구조화 전략에 대한 지침이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "효과적인 프로젝트 문서의 구조적 특성과 설계 원칙을 설명해주세요",
+            "프로젝트 계획서, 상태 보고서, 결과 보고서 등 다양한 문서 유형별 최적 구조를 제안해주세요",
+            "일정, 리소스, 위험 요소 등 프로젝트 요소를 시각적으로 표현하는 효과적인 방법을 설명해주세요",
+            "다양한 이해관계자(경영진, 팀원, 고객 등)를 위한 정보 계층화 전략을 제시해주세요",
+            "재사용 가능한 프로젝트 문서 템플릿과 그 활용법을 마크다운 형식으로 제공해주세요"
+        ])
+        
+    else:
+        builder.add_role(
+            "정보 구조화 전문가", 
+            "복잡한 정보를 효과적으로 구조화하고 시각적으로 표현하는 전문가입니다."
+        )
+        
+        builder.add_context(
+            f"저는 {topic}에 관심이 있습니다. "
+            f"정보를 명확하고 효과적으로 전달하기 위한 구조화 전략과 시각적 표현 방법을 알고 싶습니다. "
+            f"특히 재사용 가능한 템플릿과 정보 계층화 방법에 대한 지침이 필요합니다."
+        )
+        
+        builder.add_instructions([
+            "효과적인 정보 구조화의 핵심 원칙과 최적 사례를 설명해주세요",
+            "다양한 정보 유형에 적합한 시각적 포맷팅 전략을 제시해주세요",
+            "복잡한 정보를 계층화하고 관계를 명확히 표현하는 방법을 설명해주세요",
+            "재사용 가능한 템플릿 설계와 변수 시스템 구현 방법을 제안해주세요",
+            "다양한 목적에 맞게 조정 가능한 정보 구조화 템플릿과 그 활용법을 마크다운 형식으로 제공해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 다음 요소를 효과적으로 활용해주세요:\n\n"
+        f"1. 명확한 제목 계층 구조 (##, ###, ####)\n"
+        f"2. 글머리 기호와 번호 매기기를 적절히 활용한 목록\n"
+        f"3. 표를 사용한 정보 비교 및 구조화\n"
+        f"4. 인용문(>)을 활용한 중요 포인트 강조\n"
+        f"5. 코드 블록을 활용한 예시 및 템플릿 표현\n"
+        f"6. 굵은 글씨와 기울임체를 활용한 강조\n"
+        f"7. 구분선(---)을 활용한 섹션 구분\n"
+        f"8. 텍스트 기반 다이어그램이나 시각적 구조(가능한 경우)\n\n"
+        f"실제로 바로 사용할 수 있는 구체적인 템플릿을 포함해주시고, 템플릿에는 변수 시스템(예: [주제], [대상], [깊이])과 "
+        f"조건부 섹션을 포함하여 다양한 상황에 맞게 조정할 수 있도록 해주세요. 각 구조화 및 포맷팅 요소에 대한 사용 지침도 함께 제공해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Format_control")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="형식 및 구조 정교화",
+        topic_options=FORMATTING_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
