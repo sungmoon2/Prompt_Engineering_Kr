@@ -1,7 +1,7 @@
 """
-Effectiveness_evaluation 실습 모듈
+일반적인 프롬프트 오류 식별법 실습 모듈
 
-Part 8 - 섹션 8.1.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 8 - 섹션 8.1.2 실습 코드: 프롬프트에서 자주 발생하는 오류 패턴을 체계적으로 식별하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,177 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_effectiveness_evaluation_prompt, get_enhanced_effectiveness_evaluation_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+ERROR_IDENTIFICATION_TOPICS = {
+    "1": {"name": "명확성 오류", "topic": "프롬프트 명확성 관련 오류 식별 방법", "output_format": "오류 식별 가이드"},
+    "2": {"name": "맥락 오류", "topic": "프롬프트 맥락 관련 오류 식별 방법", "output_format": "분석 프레임워크"},
+    "3": {"name": "구조 오류", "topic": "프롬프트 구조 관련 오류 식별 방법", "output_format": "패턴 식별 매뉴얼"},
+    "4": {"name": "전문성 오류", "topic": "프롬프트 전문성 관련 오류 식별 방법", "output_format": "오류 진단 체크리스트"},
+    "5": {"name": "종합 오류 분석", "topic": "프롬프트 오류 종합 진단 프레임워크", "output_format": "진단 매트릭스"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["프롬프트 오류 식별에 대한 일반적 질문"],
+    "enhanced": [
+        "오류 패턴 분류: 구체적인 오류 유형 및 특징 요청",
+        "실제 사례 분석: 예시 프롬프트를 통한 실전 오류 식별",
+        "시스템적 접근: 체계적인 오류 식별 도구 및 체크리스트 제공"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "프롬프트 오류를 체계적으로 분류하면 더 정확하고 효율적인 문제 해결이 가능합니다",
+    "각 오류 유형의 특징적인 패턴과 징후를 인식하면 신속한 진단이 가능합니다",
+    "오류 식별을 위한 체계적인 체크리스트와 도구를 사용하면 일관된 분석이 가능합니다",
+    "특정 도메인이나 목적에 맞는 맞춤형 오류 식별 프레임워크를 개발할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요. 어떻게 프롬프트 오류를 식별할 수 있나요?"
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "프롬프트 디버깅 전문가", 
+        "프롬프트 오류를 체계적으로 분석하고 식별하는 방법을 가르치는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 프롬프트 엔지니어링을 배우는 학생으로, {topic}에 관심이 있습니다. "
+        f"프롬프트가 원하는 결과를 생성하지 않을 때 어떤 유형의 오류가 있는지, "
+        f"그리고 이를 어떻게 체계적으로 식별할 수 있는지 배우고 싶습니다. "
+        f"특히 실제 사례를 통한 분석과 체계적인 오류 식별 도구를 알고 싶습니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "명확성 관련 오류" in topic:
+        # 명확성 관련 오류 식별에 대한 지시사항
+        
+        # 예시 오류 프롬프트
+        unclear_prompt = """
+AI 기술에 대해 알려줘. 다양한 측면에서 설명해줘.
+"""
+        
+        builder.add_instructions([
+            "프롬프트 명확성과 관련된 주요 오류 유형(모호한 지시, 지나친 추상성, 복합적 요청, 일관성 없는 요구 등)을 체계적으로 분류하고 설명해주세요",
+            f"다음 예시 프롬프트에서 명확성 관련 오류를 식별하고 분석해주세요: \"{unclear_prompt}\"",
+            "명확성 오류의 특징적인 징후와 신호를 식별하는 방법을 구체적으로 설명해주세요",
+            "명확성 관련 오류를 식별하기 위한 체계적인 체크리스트나 진단 도구를 제공해주세요",
+            "명확성 오류의 각 유형이 AI 응답에 미치는 잠재적 영향과 심각도를 평가하는 방법을 설명해주세요",
+            "명확성 오류 사례와 개선된 버전을 비교하여 구체적인 식별 및 진단 과정을 보여주세요"
+        ])
+        
+    elif "맥락 관련 오류" in topic:
+        # 맥락 관련 오류 식별에 대한 지시사항
+        
+        # 예시 오류 프롬프트
+        context_error_prompt = """
+우리 제품의 성능 보고서를 분석해줘. 지난 분기 데이터와 비교해서 
+개선점을 찾아줘.
+"""
+        
+        builder.add_instructions([
+            "프롬프트 맥락과 관련된 주요 오류 유형(맥락 부족, 맥락 과잉, 잘못된 가정, 부적절한 예시 등)을 체계적으로 분류하고 설명해주세요",
+            f"다음 예시 프롬프트에서 맥락 관련 오류를 식별하고 분석해주세요: \"{context_error_prompt}\"",
+            "맥락 오류의 특징적인 징후와 신호를 식별하는 방법을 구체적으로 설명해주세요",
+            "맥락 관련 오류를 식별하기 위한 체계적인 분석 프레임워크를 제공해주세요",
+            "맥락 오류의 각 유형이 AI 응답에 미치는 잠재적 영향과 심각도를 평가하는 방법을 설명해주세요",
+            "맥락 오류 사례와 개선된 버전을 비교하여 구체적인 식별 및 진단 과정을 보여주세요"
+        ])
+        
+    elif "구조 관련 오류" in topic:
+        # 구조 관련 오류 식별에 대한 지시사항
+        
+        # 예시 오류 프롬프트
+        structure_error_prompt = """
+기후변화에 대한 분석해줘. 원인, 영향, 대응방안, 국제협약, 미래전망, 
+기술적 해결책, 경제적 영향, 사회적 측면, 개인적 실천방안에 대해 다뤄줘.
+또한 비판적 관점도 포함해줘.
+"""
+        
+        builder.add_instructions([
+            "프롬프트 구조와 관련된 주요 오류 유형(논리적 흐름 부재, 우선순위 불명확, 형식 지정 누락, 구분자 부족 등)을 체계적으로 분류하고 설명해주세요",
+            f"다음 예시 프롬프트에서 구조 관련 오류를 식별하고 분석해주세요: \"{structure_error_prompt}\"",
+            "구조 오류의 특징적인 패턴과 징후를 식별하는 방법을 구체적으로 설명해주세요",
+            "구조 관련 오류를 식별하기 위한 체계적인 패턴 식별 방법론을 제공해주세요",
+            "구조 오류의 각 유형이 AI 응답에 미치는 잠재적 영향과 심각도를 평가하는 방법을 설명해주세요",
+            "구조 오류 사례와 개선된 버전을 비교하여 구체적인 식별 및 진단 과정을 보여주세요"
+        ])
+        
+    elif "전문성 관련 오류" in topic:
+        # 전문성 관련 오류 식별에 대한 지시사항
+        
+        # 예시 오류 프롬프트
+        expertise_error_prompt = """
+양자 컴퓨팅에 대한 분석 보고서를 작성해줘.
+"""
+        
+        builder.add_instructions([
+            "프롬프트 전문성과 관련된 주요 오류 유형(부적절한 난이도, 잘못된 용어 사용, 역할 모호성, 분야 불일치 등)을 체계적으로 분류하고 설명해주세요",
+            f"다음 예시 프롬프트에서 전문성 관련 오류를 식별하고 분석해주세요: \"{expertise_error_prompt}\"",
+            "전문성 오류의 특징적인 징후와 신호를 식별하는 방법을 구체적으로 설명해주세요",
+            "전문성 관련 오류를 식별하기 위한 체계적인 진단 체크리스트를 제공해주세요",
+            "전문성 오류의 각 유형이 AI 응답에 미치는 잠재적 영향과 심각도를 평가하는 방법을 설명해주세요",
+            "전문성 오류 사례와 개선된 버전을 비교하여 구체적인 식별 및 진단 과정을 보여주세요"
+        ])
+        
+    else:  # 종합 오류 분석
+        # 종합 오류 진단에 대한 지시사항
+        
+        # 종합 예시 오류 프롬프트
+        combined_error_prompt = """
+이메일 작성해줘. 중요한 클라이언트에게 보낼 거야.
+"""
+        
+        builder.add_instructions([
+            "프롬프트 오류의 네 가지 주요 범주(명확성, 맥락, 구조, 전문성)와 각 범주의 세부 유형을 종합적으로 분류하고 설명해주세요",
+            f"다음 예시 프롬프트에서 다양한 유형의 오류를 종합적으로 식별하고 분석해주세요: \"{combined_error_prompt}\"",
+            "각 오류 범주 간의 상호작용과 복합적 오류가 미치는 영향을 설명해주세요",
+            "종합적인 프롬프트 오류 진단을 위한 체계적인 매트릭스나 프레임워크를 개발해주세요",
+            "오류 심각도와 우선순위를 평가하여 가장 중요한 개선 영역을 식별하는 방법을 설명해주세요",
+            "종합적인 오류 분석 사례와 단계별 개선 프로세스를 보여주어 실제 적용 방법을 설명해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 표, 목록 등을 명확히 구분해주세요. "
+        f"다음 섹션들을 포함해주세요: "
+        f"1) 오류 유형 분류: 체계적인 분류 및 정의 "
+        f"2) 식별 방법: 각 오류 유형의 특징적 신호와 패턴 "
+        f"3) 진단 도구: 체크리스트, 프레임워크, 매트릭스 등 "
+        f"4) 사례 분석: 예시 프롬프트의 실제 오류 식별 및 분석 "
+        f"5) 응용 가이드: 다양한 상황에서의 오류 식별 적용법 "
+        f"실제 예시와 개선된 버전을 비교하여 개념을 명확히 설명해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Effectiveness_evaluation")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="일반적인 프롬프트 오류 식별법",
+        topic_options=ERROR_IDENTIFICATION_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

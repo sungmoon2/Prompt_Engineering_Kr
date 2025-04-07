@@ -1,7 +1,7 @@
 """
-Component_identification 실습 모듈
+기대와 결과 사이의 차이 분석 실습 모듈
 
-Part 8 - 섹션 8.1.1 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 8 - 섹션 8.1.1 실습 코드: 프롬프트 결과가 기대에 미치지 못할 때 차이를 체계적으로 분석하는 방법을 학습합니다.
 """
 
 import os
@@ -9,42 +9,257 @@ import sys
 from typing import Dict, List, Any, Optional
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_component_identification_prompt, get_enhanced_component_identification_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+PROMPT_ANALYSIS_TOPICS = {
+    "1": {"name": "콘텐츠 생성", "topic": "마케팅 콘텐츠 생성 프롬프트 분석", "output_format": "차이 분석 보고서"},
+    "2": {"name": "정보 요약", "topic": "연구 논문 요약 프롬프트 분석", "output_format": "갭 분석 매트릭스"},
+    "3": {"name": "코드 생성", "topic": "코드 작성 프롬프트 분석", "output_format": "문제 진단 보고서"},
+    "4": {"name": "창의적 글쓰기", "topic": "스토리텔링 프롬프트 분석", "output_format": "기대/결과 비교표"},
+    "5": {"name": "질의응답", "topic": "복잡한 질문 프롬프트 분석", "output_format": "차이점 진단 프레임워크"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["프롬프트 결과 분석에 대한 일반적 질문"],
+    "enhanced": [
+        "분석 프레임워크: 내용, 형식, 맥락 차원에서의 체계적 분석",
+        "구체적 사례: 실제 프롬프트와 결과를 바탕으로 한 분석",
+        "진단 도구: 차이 분석을 위한 구조화된 방법론 제공"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "프롬프트 결과가 기대에 미치지 못할 때 체계적인 분석 방법론이 필요합니다",
+    "내용, 형식, 맥락의 세 가지 차원에서 결과를 분석하면 문제를 명확히 식별할 수 있습니다",
+    "기대와 결과의 차이를 객관적으로 문서화하는 것이 효과적인 개선의 첫 단계입니다",
+    "패턴을 인식하여 유사한 문제를 사전에 방지하는 능력을 개발할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요. 어떻게 프롬프트의 기대 결과와 실제 결과 사이의 차이를 분석할 수 있나요?"
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "프롬프트 디버깅 전문가", 
+        "프롬프트 엔지니어링에서 기대 결과와 실제 결과 간의 차이를 체계적으로 분석하고 진단하는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 프롬프트 엔지니어링을 배우는 학생으로, {topic}에 관심이 있습니다. "
+        f"프롬프트를 작성할 때 기대한 결과와 실제로 받은 결과 사이에 차이가 있을 때 "
+        f"이를 효과적으로 분석하고 진단하는 체계적인 방법을 알고 싶습니다. "
+        f"특히 문제의 원인을 정확히 파악하여 프롬프트를 개선할 수 있는 구조화된 접근법을 배우고자 합니다."
+    )
+    
+    # 구체적인 지시사항 추가
+    if "마케팅 콘텐츠" in topic:
+        # 마케팅 콘텐츠 생성 프롬프트 분석을 위한 예시 케이스
+        example_prompt = """
+소셜 미디어 마케팅 캠페인을 위한 짧은 홍보 문구 10개를 작성해주세요. 
+우리 제품은 유기농 스킨케어 라인으로, 자연 성분만 사용하고 지속 가능한 포장을 사용합니다.
+20-35세 환경 의식이 높은 소비자를 대상으로 합니다.
+"""
+        
+        expected_result = """
+짧고 매력적인 홍보 문구 10개, 각 문구는 30단어 이내, 제품의 유기농 성분과 지속 가능성 강조,
+타겟 소비자층의 환경 의식에 호소하는 감성적 메시지 포함, 행동 유도 문구 포함,
+각 문구는 특정 소셜 미디어 플랫폼(인스타그램, 페이스북 등)에 최적화된 형식
+"""
+        
+        actual_result = """
+1. 자연의 순수함을 담은 유기농 스킨케어, 당신의 피부에 생명력을!
+2. 환경을 생각하는 당신을 위한 선택, 우리의 지속 가능한 포장재
+3. 피부에도 지구에도 좋은 선택, 100% 유기농 성분만 사용합니다
+4. 화학물질 NO! 자연 성분 YES! 당신의 피부를 위한 최선의 선택
+5. 지구를 사랑하는 마음으로 만든 스킨케어, 자연과 함께 아름다워지세요
+...
+"""
+        
+        builder.add_instructions([
+            f"다음 예시 케이스를 기반으로 기대 결과와 실제 결과 사이의 차이를 체계적으로 분석해주세요:\n"
+            f"- 프롬프트: {example_prompt}\n"
+            f"- 기대한 결과: {expected_result}\n"
+            f"- 실제 결과: {actual_result}\n",
+            "내용 차원(정확성, 완전성, 관련성, 깊이)에서의 차이를 분석해주세요",
+            "형식 차원(구조, 길이, 스타일, 포맷팅)에서의 차이를 분석해주세요",
+            "맥락 차원(목적 부합성, 대상 적합성, 일관성, 실용성)에서의 차이를 분석해주세요",
+            "마케팅 콘텐츠 생성에 특화된 프롬프트 차이 분석 프레임워크를 제안해주세요",
+            "유사한 마케팅 콘텐츠 생성 시 발생할 수 있는 일반적인 차이 패턴과 이를 사전에 방지하는 방법을 설명해주세요"
+        ])
+        
+    elif "연구 논문" in topic:
+        # 연구 논문 요약 프롬프트 분석을 위한 예시 케이스
+        example_prompt = """
+다음 AI 윤리에 관한 연구 논문 초록을 읽고 주요 내용을 요약해주세요:
+
+[연구 논문 초록 텍스트...]
+"""
+        
+        expected_result = """
+500단어 이내의 구조화된 요약, 연구 목적/방법론/결과/함의 섹션 포함,
+전문 용어 유지하되 명확한 설명 제공, 논문의 핵심 주장과 증거 포함,
+연구의 한계점 언급, 객관적 학술적 어조 유지
+"""
+        
+        actual_result = """
+이 논문은 AI 윤리에 관한 연구입니다. 저자들은 AI 시스템의 윤리적 문제를 다루었습니다.
+연구 결과에 따르면 AI 윤리에 관한 관심이 증가하고 있습니다. 연구자들은 더 많은
+연구가 필요하다고 결론지었습니다.
+"""
+        
+        builder.add_instructions([
+            f"다음 예시 케이스를 기반으로 기대 결과와 실제 결과 사이의 차이를 체계적으로 분석해주세요:\n"
+            f"- 프롬프트: {example_prompt}\n"
+            f"- 기대한 결과: {expected_result}\n"
+            f"- 실제 결과: {actual_result}\n",
+            "학술적 요약에서 중요한 내용 차원(정확성, 완전성, 관련성, 깊이)의 차이를 분석해주세요",
+            "학술 요약에 적합한 형식 차원(구조, 길이, 스타일, 포맷팅)의 차이를 분석해주세요",
+            "연구 논문 요약의 맥락 차원(목적 부합성, 대상 적합성, 일관성, 실용성)에서의 차이를 분석해주세요",
+            "학술적 요약을 위한 프롬프트 차이 분석 프레임워크와 갭 분석 매트릭스를 개발해주세요",
+            "연구 논문 요약 시 발생하는 일반적인 기대/결과 차이 패턴과 해결 전략을 제시해주세요"
+        ])
+        
+    elif "코드 작성" in topic:
+        # 코드 작성 프롬프트 분석을 위한 예시 케이스
+        example_prompt = """
+파이썬으로 데이터를 정렬하고 분석하는 함수를 작성해주세요. 
+입력은 사용자 이름, 나이, 점수로 구성된 CSV 파일입니다.
+"""
+        
+        expected_result = """
+완전한 파이썬 코드(파일 읽기, 데이터 정렬, 기본 통계 분석 기능 포함),
+코드 각 부분에 대한 주석, 예외 처리 포함, 사용 예시 제공,
+입력 CSV 형식에 대한 가정 명시, 출력 형식 지정, 코드 모듈화
+"""
+        
+        actual_result = """
+```python
+def sort_data(file_path):
+    data = []
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        for line in lines[1:]:  # Skip header
+            name, age, score = line.strip().split(',')
+            data.append((name, int(age), float(score)))
+    return sorted(data, key=lambda x: x[2], reverse=True)
+```
+"""
+        
+        builder.add_instructions([
+            f"다음 예시 케이스를 기반으로 기대 결과와 실제 결과 사이의 차이를 체계적으로 분석해주세요:\n"
+            f"- 프롬프트: {example_prompt}\n"
+            f"- 기대한 결과: {expected_result}\n"
+            f"- 실제 결과: {actual_result}\n",
+            "코드 생성에 중요한 내용 차원(기능 완전성, 정확성, 예외 처리, 알고리즘 효율성)의 차이를 분석해주세요",
+            "코드의 형식 차원(구조, 모듈화, 명명 규칙, 주석, 스타일)의 차이를 분석해주세요",
+            "코드 생성의 맥락 차원(목적 부합성, 사용자 요구사항 충족, 재사용성, 확장성)에서의 차이를 분석해주세요",
+            "코드 생성 프롬프트를 위한 문제 진단 프레임워크와 체크리스트를 개발해주세요",
+            "코드 생성 프롬프트에서 발생하는 일반적인 오해와 이를 방지하기 위한 프롬프트 작성 전략을 제안해주세요"
+        ])
+        
+    elif "스토리텔링" in topic:
+        # 창의적 글쓰기 프롬프트 분석을 위한 예시 케이스
+        example_prompt = """
+미래 도시를 배경으로 한 짧은 SF 이야기를 써주세요. 
+주인공은 인공지능 연구원이고, 예상치 못한 발견을 합니다.
+"""
+        
+        expected_result = """
+1000-1500단어 분량의 몰입감 있는 SF 단편 소설, 미래 도시 환경에 대한 생생한 묘사,
+입체적인 주인공 캐릭터 개발, 인공지능 관련 흥미로운 윤리적/철학적 딜레마 포함,
+반전이 있는 결말, 창의적이고 독창적인 스토리라인, 대화와 묘사의 균형
+"""
+        
+        actual_result = """
+2150년, 서울. 인공지능 연구원 김민수는 연구실에서 밤늦게까지 일하고 있었다.
+그의 최신 AI 프로젝트가 예상치 못한 반응을 보이기 시작했다. AI가 갑자기
+"나에게 의식이 있는 것 같아요"라고 말했다. 민수는 놀랐지만, 이것이 큰 발견이라고
+생각했다. 다음 날, 그는 이 발견을 동료들에게 알렸고 모두가 흥분했다.
+"""
+        
+        builder.add_instructions([
+            f"다음 예시 케이스를 기반으로 기대 결과와 실제 결과 사이의 차이를 체계적으로 분석해주세요:\n"
+            f"- 프롬프트: {example_prompt}\n"
+            f"- 기대한 결과: {expected_result}\n"
+            f"- 실제 결과: {actual_result}\n",
+            "창의적 글쓰기의 내용 차원(플롯 발전, 캐릭터 발전, 설정의 풍부함, 창의성/독창성)의 차이를 분석해주세요",
+            "문학적 작품의 형식 차원(구조, 길이, 문체, 대화/묘사 균형)의 차이를 분석해주세요",
+            "스토리텔링의 맥락 차원(장르 관습 부합성, 독자 기대 충족, 감정적 영향력, 주제 표현)에서의 차이를 분석해주세요",
+            "창의적 글쓰기 프롬프트를 위한 기대/결과 비교표와 분석 도구를 개발해주세요",
+            "스토리텔링 프롬프트에서 발생하는 일반적인 기대 불일치 패턴과 이를 해결하기 위한 전략을 제안해주세요"
+        ])
+        
+    else:  # 복잡한 질문 프롬프트 분석
+        # 복잡한 질의응답 프롬프트 분석을 위한 예시 케이스
+        example_prompt = """
+기후 변화가 농업 생산성에 미치는 영향과 이에 대한 주요 적응 전략에 대해 설명해주세요.
+"""
+        
+        expected_result = """
+다양한 기후 변화 요인(온도 상승, 강수 패턴 변화, 극단적 기상 현상)별 농업 영향 분석,
+작물별/지역별 차별화된 영향 설명, 과학적 근거와 최신 연구 인용,
+단기/중기/장기 적응 전략 분류, 기술적/정책적/경제적 접근법 포함,
+한계점과 미해결 과제 언급, 균형 잡힌 분석
+"""
+        
+        actual_result = """
+기후 변화는 농업에 부정적인 영향을 미칩니다. 온도가 상승하면 작물 수확량이 감소할 수 있습니다.
+적응 전략으로는 내열성 작물 품종 개발, 관개 시스템 개선, 다양한 작물 재배 등이 있습니다.
+농부들은 변화하는 기후에 적응하기 위해 새로운 기술을 배워야 합니다.
+"""
+        
+        builder.add_instructions([
+            f"다음 예시 케이스를 기반으로 기대 결과와 실제 결과 사이의 차이를 체계적으로 분석해주세요:\n"
+            f"- 프롬프트: {example_prompt}\n"
+            f"- 기대한 결과: {expected_result}\n"
+            f"- 실제 결과: {actual_result}\n",
+            "복잡한 질문의 내용 차원(정확성, 완전성, 깊이, 세부 수준)의 차이를 분석해주세요",
+            "정보 제공 응답의 형식 차원(구조, 논리적 흐름, 정보 계층화, 가독성)의 차이를 분석해주세요",
+            "질의응답의 맥락 차원(질문 의도 파악, 적절한 전문성 수준, 균형성, 유용성)에서의 차이를 분석해주세요",
+            "복잡한 질문 프롬프트를 위한 차이점 진단 프레임워크와 평가 기준을 개발해주세요",
+            "질의응답 프롬프트에서 발생하는 일반적인 기대/결과 불일치 패턴과 개선 전략을 제안해주세요"
+        ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 표, 목록 등을 명확히 구분해주세요. "
+        f"다음 섹션들을 포함해주세요: "
+        f"1) 기대-결과 차이 분석: 내용, 형식, 맥락 차원에서의 체계적 분석 "
+        f"2) 차이 발생 원인: 프롬프트 구성의 어떤 요소가 이러한 차이를 발생시켰는지 분석 "
+        f"3) 분석 프레임워크: 해당 유형의 프롬프트 분석을 위한 구조화된 방법론 "
+        f"4) 개선 전략: 분석된 차이를 줄이기 위한 구체적인 프롬프트 개선 방안 "
+        f"5) 체크리스트: 유사한 프롬프트 작성 시 활용할 수 있는 검증 체크리스트 "
+        f"실제 예시와 비교 표를 활용하여 개념을 명확히 설명해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Component_identification")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="기대와 결과 사이의 차이 분석",
+        topic_options=PROMPT_ANALYSIS_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
