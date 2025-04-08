@@ -1,50 +1,161 @@
 """
-Resolution_strategies 실습 모듈
+단계별 프롬프트 개선 과정 기록 실습 모듈
 
-Part 8 - 섹션 8.4.2 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 8 - 섹션 8.4.2 실습 코드: 프롬프트 개선 과정을 체계적으로 기록하고 분석하는 방법을 학습합니다.
 """
 
 import os
 import sys
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_resolution_strategies_prompt, get_enhanced_resolution_strategies_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+PROMPT_IMPROVEMENT_TOPICS = {
+    "1": {"name": "학술 논문 요약", "topic": "학술 논문 요약 프롬프트 개선 과정", "output_format": "개선 기록서"},
+    "2": {"name": "제품 설명 작성", "topic": "제품 설명 작성 프롬프트 개선 과정", "output_format": "단계별 가이드"},
+    "3": {"name": "코드 디버깅", "topic": "코드 디버깅 프롬프트 개선 과정", "output_format": "사례 분석"},
+    "4": {"name": "면접 준비", "topic": "면접 준비 프롬프트 개선 과정", "output_format": "개선 매트릭스"},
+    "5": {"name": "데이터 분석", "topic": "데이터 분석 프롬프트 개선 과정", "output_format": "반복 개선 로그"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["프롬프트 개선 방법에 대한 일반적인 설명 요청"],
+    "enhanced": [
+        "역할 설정: 프롬프트 개선 전문가 역할 부여",
+        "단계적 접근: RADIO 프레임워크 기반 체계적 개선 과정 요청",
+        "실제 사례: 구체적인 비효과적 프롬프트의 단계별 개선 과정 요청",
+        "기록 방법론: 프롬프트 개선 과정의 체계적 기록 방법 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "프롬프트 개선은 단순한 편집이 아닌 인식-분석-설계-실행-최적화의 체계적인 과정입니다",
+    "각 개선 단계에서의 변경 사항과 의도를 명확히 기록하는 것이 중요합니다",
+    "점진적 개선 방식은 한 번에 하나의 요소만 변경하여 효과를 정확히 평가할 수 있게 합니다",
+    "A/B 테스트는 서로 다른 프롬프트 변형의 효과를 객관적으로 비교하는 데 유용합니다",
+    "프롬프트 개선 경험을 체계적으로 축적하면 재사용 가능한 패턴과 전략을 개발할 수 있습니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "프롬프트 개선 전문가", 
+        "비효과적인 프롬프트를 체계적으로 분석하고 단계적으로 개선하는 과정을 가르치는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 {topic}에 관심이 있는 프롬프트 엔지니어링 학습자입니다. "
+        f"프롬프트를 체계적으로 개선하고 각 단계의 변화와 효과를 명확히 기록하는 방법을 배우고 싶습니다. "
+        f"실제 사례를 통해 단계별 개선 과정을 이해하고, 이를 체계적으로 기록하는 방법론을 학습하고자 합니다."
+    )
+    
+    # 주제별 지시사항 추가
+    if "학술 논문" in topic:
+        initial_prompt = "이 논문을 요약해줘."
+        
+        builder.add_instructions([
+            "학술 논문 요약을 위한 비효과적 프롬프트의 단계별 개선 과정을 RADIO 프레임워크(인식-분석-설계-실행-최적화)를 적용하여 설명해주세요",
+            f"다음과 같은 비효과적 프롬프트를 시작점으로 삼아주세요: '{initial_prompt}'",
+            "최소 3단계 이상의 개선 과정을 보여주고, 각 단계별 변경 사항, 변경 이유, 예상 효과, 실제 결과를 명확히 기록해주세요",
+            "각 개선 단계에서 특히 학술 논문 요약에 중요한 요소(논문 구조, 연구 방법론, 주요 발견, 학술적 맥락 등)를 어떻게 강화하는지 설명해주세요",
+            "최종 개선된 프롬프트와 함께, 학술 논문 요약을 위한 프롬프트 작성 시 일반적으로 고려해야 할 핵심 요소와 패턴도 정리해주세요"
+        ])
+        
+    elif "제품 설명" in topic:
+        initial_prompt = "이 제품에 대한 설명 작성해줘."
+        
+        builder.add_instructions([
+            "제품 설명 작성을 위한 비효과적 프롬프트의 단계별 개선 과정을 RADIO 프레임워크(인식-분석-설계-실행-최적화)를 적용하여 설명해주세요",
+            f"다음과 같은 비효과적 프롬프트를 시작점으로 삼아주세요: '{initial_prompt}'",
+            "최소 3단계 이상의 개선 과정을 보여주고, 각 단계별 변경 사항, 변경 이유, 예상 효과, 실제 결과를 명확히 기록해주세요",
+            "각 개선 단계에서 특히 제품 설명 작성에 중요한 요소(타겟 고객, 제품 특징, USP, 톤앤매너, CTA 등)를 어떻게 강화하는지 설명해주세요",
+            "최종 개선된 프롬프트와 함께, 효과적인 제품 설명 작성을 위한 프롬프트 작성 시 일반적으로 고려해야 할 핵심 요소와 패턴도 정리해주세요"
+        ])
+        
+    elif "코드 디버깅" in topic:
+        initial_prompt = "이 코드 오류 찾아줘."
+        
+        builder.add_instructions([
+            "코드 디버깅을 위한 비효과적 프롬프트의 단계별 개선 과정을 RADIO 프레임워크(인식-분석-설계-실행-최적화)를 적용하여 설명해주세요",
+            f"다음과 같은 비효과적 프롬프트를 시작점으로 삼아주세요: '{initial_prompt}'",
+            "최소 3단계 이상의 개선 과정을 보여주고, 각 단계별 변경 사항, 변경 이유, 예상 효과, 실제 결과를 명확히 기록해주세요",
+            "각 개선 단계에서 특히 코드 디버깅에 중요한 요소(오류 메시지, 코드 컨텍스트, 개발 환경, 예상 동작, 시도한 해결책 등)를 어떻게 강화하는지 설명해주세요",
+            "최종 개선된 프롬프트와 함께, 효과적인 코드 디버깅을 위한 프롬프트 작성 시 일반적으로 고려해야 할 핵심 요소와 패턴도 정리해주세요"
+        ])
+        
+    elif "면접 준비" in topic:
+        initial_prompt = "면접 준비 도와줘."
+        
+        builder.add_instructions([
+            "면접 준비를 위한 비효과적 프롬프트의 단계별 개선 과정을 RADIO 프레임워크(인식-분석-설계-실행-최적화)를 적용하여 설명해주세요",
+            f"다음과 같은 비효과적 프롬프트를 시작점으로 삼아주세요: '{initial_prompt}'",
+            "최소 3단계 이상의 개선 과정을 보여주고, 각 단계별 변경 사항, 변경 이유, 예상 효과, 실제 결과를 명확히 기록해주세요",
+            "각 개선 단계에서 특히 면접 준비에 중요한 요소(직무 정보, 기업 정보, 면접 유형, 경력 수준, 산업 특성 등)를 어떻게 강화하는지 설명해주세요",
+            "최종 개선된 프롬프트와 함께, 효과적인 면접 준비를 위한 프롬프트 작성 시 일반적으로 고려해야 할 핵심 요소와 패턴도 정리해주세요"
+        ])
+        
+    else:  # 데이터 분석
+        initial_prompt = "이 데이터 분석해줘."
+        
+        builder.add_instructions([
+            "데이터 분석을 위한 비효과적 프롬프트의 단계별 개선 과정을 RADIO 프레임워크(인식-분석-설계-실행-최적화)를 적용하여 설명해주세요",
+            f"다음과 같은 비효과적 프롬프트를 시작점으로 삼아주세요: '{initial_prompt}'",
+            "최소 3단계 이상의 개선 과정을 보여주고, 각 단계별 변경 사항, 변경 이유, 예상 효과, 실제 결과를 명확히 기록해주세요",
+            "각 개선 단계에서 특히 데이터 분석에 중요한 요소(데이터 구조, 분석 목적, 핵심 질문, 시각화 요구사항, 통계적 고려사항 등)를 어떻게 강화하는지 설명해주세요",
+            "최종 개선된 프롬프트와 함께, 효과적인 데이터 분석을 위한 프롬프트 작성 시 일반적으로 고려해야 할 핵심 요소와 패턴도 정리해주세요"
+        ])
+    
+    # 추가 지시사항 (모든 주제 공통)
+    builder.add_instructions([
+        "프롬프트 개선 과정을 기록하는 효과적인 방법론과 템플릿을 제안해주세요",
+        "A/B 테스트를 통해 프롬프트 변형의 효과를 측정하는 방법도 포함해주세요",
+        "개선 과정에서 발견한 패턴과 인사이트를 재사용 가능한 형태로 정리하는 방법을 설명해주세요"
+    ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"다음 섹션들을 포함해주세요: "
+        f"1) 초기 프롬프트 분석: 비효과적 프롬프트의 주요 문제점 "
+        f"2) 단계별 개선 과정: 각 개선 단계와 변경 사항, 이유, 효과 "
+        f"3) 최종 개선 프롬프트: 모든 개선을 반영한 최적화된 버전 "
+        f"4) 개선 과정 기록 방법론: 효과적인 기록 템플릿과 접근법 "
+        f"5) 재사용 가능한 패턴: 해당 분야 프롬프트 작성을 위한 핵심 요소 "
+        f"단계별 개선 과정은 표나 구조화된 형식으로 명확히 보여주고, "
+        f"각 개선의 전후 비교가 시각적으로 잘 드러나도록 해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Resolution_strategies")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="단계별 개선 과정 기록",
+        topic_options=PROMPT_IMPROVEMENT_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:

@@ -1,50 +1,157 @@
 """
-Preventive_practices 실습 모듈
+프롬프트 디버깅 체크리스트 개발 실습 모듈
 
-Part 8 - 섹션 8.4.3 실습 코드: 기본 프롬프트와 향상된 프롬프트의 차이 비교
+Part 8 - 섹션 8.4.3 실습 코드: 효과적인 프롬프트 디버깅을 위한 체계적인 체크리스트를 개발하고 적용하는 방법을 학습합니다.
 """
 
 import os
 import sys
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 # 상위 디렉토리를 경로에 추가하여 utils 모듈을 import할 수 있게 설정
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(project_root)
 
-from utils.ai_client import get_completion
 from utils.prompt_builder import PromptBuilder
-from utils.file_handler import save_markdown
-from utils.ui_helpers import (
-    print_header, print_step, get_user_input, 
-    display_results_comparison, print_prompt_summary,
-    print_learning_points
-)
-from utils.example_data import get_examples_by_category
-# from utils.prompt_templates import get_basic_preventive_practices_prompt, get_enhanced_preventive_practices_prompt
+from utils.exercise_template import run_exercise
+
+# 주제 옵션 정의
+CHECKLIST_DEVELOPMENT_TOPICS = {
+    "1": {"name": "범용 디버깅 체크리스트", "topic": "범용 프롬프트 디버깅 체크리스트 개발", "output_format": "체크리스트 가이드"},
+    "2": {"name": "학술 연구 체크리스트", "topic": "학술 연구 프롬프트 디버깅 체크리스트 개발", "output_format": "분야별 체크리스트"},
+    "3": {"name": "창의적 글쓰기 체크리스트", "topic": "창의적 글쓰기 프롬프트 디버깅 체크리스트 개발", "output_format": "특화 체크리스트"},
+    "4": {"name": "코딩 및 기술 체크리스트", "topic": "코딩 및 기술 문제 해결 프롬프트 디버깅 체크리스트 개발", "output_format": "문제 해결 매트릭스"},
+    "5": {"name": "디버깅 워크플로우", "topic": "체크리스트 기반 프롬프트 디버깅 워크플로우 개발", "output_format": "프로세스 가이드"}
+}
+
+# 프롬프트 요약 정보
+PROMPT_SUMMARY = {
+    "basic": ["프롬프트 디버깅 체크리스트에 대한 일반적인 설명 요청"],
+    "enhanced": [
+        "역할 설정: 프롬프트 품질 관리 전문가 역할 부여",
+        "체계적 접근: 구조화된 체크리스트 개발 방법론 요청",
+        "실용성 강화: 실제 적용 가능한 템플릿과 예시 요청",
+        "맞춤화 요소: 특정 분야/목적에 최적화된 체크리스트 요청"
+    ]
+}
+
+# 학습 포인트
+LEARNING_POINTS = [
+    "효과적인 프롬프트 디버깅 체크리스트는 문제 발견의 일관성과 체계성을 보장합니다",
+    "범용 체크리스트와 분야별 특화 체크리스트를 결합하면 더 포괄적인 문제 진단이 가능합니다",
+    "체크리스트를 프롬프트 개발 워크플로우에 통합하면 품질 관리 프로세스를 효율화할 수 있습니다",
+    "체크리스트 자체도 경험과 피드백을 바탕으로 지속적으로 발전시켜야 합니다",
+    "잘 설계된 디버깅 체크리스트는 프롬프트 엔지니어링 지식을 체계화하고 재사용 가능하게 만듭니다"
+]
+
+def get_basic_prompt(topic: str) -> str:
+    """기본 프롬프트 생성"""
+    return f"{topic}에 대해 알려주세요."
+
+def get_enhanced_prompt(topic: str, purpose: str, output_format: str) -> str:
+    """향상된 프롬프트 생성"""
+    builder = PromptBuilder()
+    
+    # 역할 및 맥락 설정
+    builder.add_role(
+        "프롬프트 품질 관리 전문가", 
+        "다양한 유형의 프롬프트 문제를 체계적으로 진단하고 디버깅하기 위한 체크리스트와 워크플로우를 개발하는 전문가"
+    )
+    
+    # 맥락 정보 추가
+    builder.add_context(
+        f"저는 {topic}에 관심이 있는 프롬프트 엔지니어링 학습자입니다. "
+        f"프롬프트 작성 과정에서 발생하는 다양한 문제를 체계적으로 진단하고 해결하기 위한 "
+        f"효과적인 체크리스트를 개발하고 싶습니다. 이를 통해 프롬프트 품질을 일관되게 "
+        f"관리하고 개선 프로세스를 효율화하고자 합니다."
+    )
+    
+    # 주제별 지시사항 추가
+    if "범용 디버깅 체크리스트" in topic:
+        builder.add_instructions([
+            "다양한 유형의 프롬프트에 적용할 수 있는 종합적인 디버깅 체크리스트를 개발해주세요",
+            "체크리스트에 포함되어야 할 핵심 영역(명확성, 맥락, 구조, 제약, 실행 가능성 등)과 각 영역별 세부 항목을 제안해주세요",
+            "각 체크 항목을 명확하고 행동 지향적인 질문 형식으로 작성해주세요",
+            "체크리스트 항목의 중요도나 우선순위를 표시하는 방법도 제안해주세요",
+            "체크리스트를 효과적으로 적용하기 위한 실용적인 지침과 예시를 포함해주세요",
+            "체크리스트 결과를 해석하고 프롬프트를 개선하는 방법에 대한 가이드라인도 제공해주세요"
+        ])
+        
+    elif "학술 연구 체크리스트" in topic:
+        builder.add_instructions([
+            "학술 연구 및 문헌 검토 관련 프롬프트에 특화된 디버깅 체크리스트를 개발해주세요",
+            "학술 프롬프트에서 특히 중요한 요소(연구 질문, 방법론, 이론적 프레임워크, 학술적 엄격성 등)에 초점을 맞춘 체크 항목을 제안해주세요",
+            "학술 연구 프롬프트에서 흔히 발생하는 문제점과 이를 식별하기 위한 구체적인 체크 항목을 개발해주세요",
+            "다양한 학문 분야(인문학, 사회과학, 자연과학 등)에 공통적으로 적용할 수 있는 항목과 분야별 특화 항목을 구분해주세요",
+            "학술 프롬프트의 품질을 평가하는 객관적인 기준과 점수화 방식도 제안해주세요",
+            "실제 학술 연구 프롬프트 사례에 체크리스트를 적용하는 예시를 포함해주세요"
+        ])
+        
+    elif "창의적 글쓰기 체크리스트" in topic:
+        builder.add_instructions([
+            "창의적 글쓰기 및 콘텐츠 생성 관련 프롬프트에 특화된 디버깅 체크리스트를 개발해주세요",
+            "창의적 글쓰기 프롬프트에서 특히 중요한 요소(장르, 스타일, 캐릭터, 설정, 플롯, 톤 등)에 초점을 맞춘 체크 항목을 제안해주세요",
+            "창의성을 촉진하면서도 명확한 방향성을 제시하는 균형을 평가하는 체크 항목을 개발해주세요",
+            "다양한 창작 장르(소설, 시, 스크립트, 마케팅 카피 등)에 따른 특화된 체크 항목을 포함해주세요",
+            "창의적 프롬프트의 품질을 평가하는 객관적인 기준과 점수화 방식도 제안해주세요",
+            "실제 창의적 글쓰기 프롬프트 사례에 체크리스트를 적용하는 예시를 포함해주세요"
+        ])
+        
+    elif "코딩 및 기술 체크리스트" in topic:
+        builder.add_instructions([
+            "코딩 및 기술 문제 해결 관련 프롬프트에 특화된 디버깅 체크리스트를 개발해주세요",
+            "기술 프롬프트에서 특히 중요한 요소(문제 명세, 기술 환경, 제약사항, 예상 결과 등)에 초점을 맞춘 체크 항목을 제안해주세요",
+            "코드 관련 프롬프트에서 흔히 발생하는 문제점과 이를 식별하기 위한 구체적인 체크 항목을 개발해주세요",
+            "다양한 기술 영역(웹 개발, 데이터 분석, 알고리즘 등)에 따른 특화된 체크 항목을 포함해주세요",
+            "기술 프롬프트의 품질을 평가하는 객관적인 기준과 점수화 방식도 제안해주세요",
+            "실제 코딩 및 기술 문제 해결 프롬프트 사례에 체크리스트를 적용하는 예시를 포함해주세요"
+        ])
+        
+    else:  # 디버깅 워크플로우
+        builder.add_instructions([
+            "체크리스트를 활용한 체계적인 프롬프트 디버깅 워크플로우를 개발해주세요",
+            "프롬프트 라이프사이클(설계-테스트-개선-배포) 각 단계에 체크리스트를 통합하는 방법을 설명해주세요",
+            "프롬프트 문제 유형별로 적합한 디버깅 전략과 흐름도를 제시해주세요",
+            "프롬프트 디버깅 결과를 기록하고 지식을 축적하는 효과적인 시스템을 제안해주세요",
+            "디버깅 프로세스를 효율화하고 일부 자동화할 수 있는 도구와 템플릿을 제안해주세요",
+            "실제 프롬프트 개발 과정에 워크플로우를 적용하는 구체적인 사례를 포함해주세요"
+        ])
+    
+    # 추가 지시사항 (모든 주제 공통)
+    builder.add_instructions([
+        "개발한 체크리스트나 워크플로우를 실제로 활용할 수 있는 구체적인 템플릿과 예시를 제공해주세요",
+        "체크리스트나 워크플로우를 지속적으로 개선하고 발전시키는 방법도 제안해주세요",
+        "제안된 체크리스트나 워크플로우의 한계점과 이를 보완하는 방법도 설명해주세요"
+    ])
+    
+    # 출력 형식 지정
+    builder.add_format_instructions(
+        f"응답은 {output_format} 형식으로 구성해주세요. "
+        f"마크다운 형식을 사용하여 제목, 소제목, 목록 등을 명확히 구분해주세요. "
+        f"다음 섹션들을 포함해주세요: "
+        f"1) 개요: 체크리스트/워크플로우의 목적 및 중요성 "
+        f"2) 핵심 구성 요소: 주요 영역 및 항목 설명 "
+        f"3) 완전한 체크리스트/워크플로우: 카테고리별로 구조화된 항목 "
+        f"4) 적용 가이드: 실제 사용 방법 및 예시 "
+        f"5) 개선 및 확장: 지속적 발전 방법 "
+        f"표, 다이어그램, 체크리스트 템플릿 등 시각적 요소를 활용하여 이해를 돕고, "
+        f"실제 사용 가능한 형태의 템플릿과 예시를 제공해주세요."
+    )
+    
+    return builder.build()
 
 def main():
     """메인 함수"""
-    print_header(f"Preventive_practices")
-    
-    # 1. 주제/과제 선택 또는 입력
-    print_step(1, "주제 선택")
-    # TODO: 예제 데이터 및 사용자 입력 구현
-    
-    # 2. 기본 프롬프트 생성 및 실행
-    print_step(2, "기본 프롬프트로 질문하기")
-    # TODO: 기본 프롬프트 생성 및 실행
-    
-    # 3. 향상된 프롬프트 생성 및 실행
-    print_step(3, "향상된 프롬프트로 질문하기")
-    # TODO: 향상된 프롬프트 생성 및 실행
-    
-    # 4. 결과 비교 및 저장
-    print_step(4, "결과 비교 및 저장")
-    # TODO: 결과 비교 및 저장
-    
-    # 5. 학습 내용 정리
-    print_step(5, "학습 내용 정리")
-    # TODO: 학습 내용 정리
+    # 실행 결과를 저장할 때 챕터별 폴더 구조를 사용
+    run_exercise(
+        title="프롬프트 디버깅 체크리스트 개발",
+        topic_options=CHECKLIST_DEVELOPMENT_TOPICS,
+        get_basic_prompt=get_basic_prompt,
+        get_enhanced_prompt=get_enhanced_prompt,
+        prompt_summary=PROMPT_SUMMARY,
+        learning_points=LEARNING_POINTS
+    )
 
 if __name__ == "__main__":
     try:
